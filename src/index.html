@@ -5,520 +5,107 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Calculator</title>
     <link rel="stylesheet" href="styles/main.css">
-    <style>
-        body {
-            /* Vibrant gradient background */
-            min-height: 100vh;
-            background: linear-gradient(135deg, #f7971e 0%, #ffd200 40%, #21d4fd 100%);
-            background-attachment: fixed;
-            margin: 0;
-            font-family: 'Segoe UI', Arial, sans-serif;
-        }
-        .container {
-            background: rgba(255,255,255,0.92);
-            border-radius: 18px;
-            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.18);
-            max-width: 800px;
-            margin: 40px auto 24px auto;
-            padding: 32px 24px 24px 24px;
-            position: relative;
-        }
-        .cool-image {
-            display: block;
-            margin: 0 auto 24px auto;
-            max-width: 180px;
-            border-radius: 16px;
-            box-shadow: 0 4px 24px 0 rgba(0,0,0,0.12);
-        }
-        h1 {
-            text-align: center;
-            font-size: 2.5rem;
-            letter-spacing: 2px;
-            color: #222;
-            margin-bottom: 10px;
-        }
-        h2, h3 {
-            color: #1e88e5;
-        }
-        button, input[type="submit"] {
-            background: linear-gradient(90deg, #21d4fd 0%, #b721ff 100%);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 18px;
-            font-size: 1rem;
-            margin: 6px 0;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover, input[type="submit"]:hover {
-            background: linear-gradient(90deg, #b721ff 0%, #21d4fd 100%);
-        }
-        input[type="text"], input[type="date"], select {
-            border-radius: 6px;
-            border: 1px solid #bbb;
-            padding: 6px 10px;
-            margin: 4px 0 8px 0;
-            font-size: 1rem;
-        }
-        .attendance-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 18px;
-        }
-        .attendance-table th, .attendance-table td {
-            border: 1px solid #bbb;
-            padding: 8px;
-            text-align: center;
-            background: rgba(255,255,255,0.85);
-        }
-        .attendance-table th {
-            background: #f0f8ff;
-        }
-        .subject-cell {
-            display: inline-block;
-            margin: 0 6px 0 0;
-            font-size: 15px;
-        }
-        ul {
-            padding-left: 18px;
-        }
-        #remove-all {
-            float: right;
-            margin-top: 8px;
-        }
-        @media (max-width: 600px) {
-            .container {
-                padding: 10px 2vw;
-            }
-            h1 { font-size: 1.5rem; }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="scripts/main.js" defer></script>
 </head>
 <body>
+
+    <div class="background-shapes"></div>
+
     <div class="container">
-        <!-- Cool image at the top -->
-        <img class="cool-image" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80" alt="Cool Study" />
         <h1>Attendance Calculator</h1>
-        <button id="remove-all" style="margin-bottom:16px;">Remove All Records</button>
-        <section id="timetable-setup">
+
+        <section id="timetable-setup" class="card">
             <h2>Set Your Weekly Timetable</h2>
             <form id="timetable-form">
                 <div id="days-container"></div>
                 <button type="submit">Save Timetable</button>
             </form>
         </section>
-        <div id="month-controls" style="display:none; margin-bottom:16px;">
-            <span id="current-month-label"></span>
-            <button id="new-month-btn">Start New Month</button>
-            <form id="new-month-form" style="display:none; margin-top:8px;">
+
+        <div id="month-controls" class="card" style="display:none;">
+            <div class="month-header">
+                <span id="current-month-label"></span>
+                <button id="new-month-btn">Start New Month</button>
+            </div>
+            <form id="new-month-form" style="display:none;">
                 <input type="text" id="month-name-input" required placeholder="Enter month name (e.g. October 2025)">
                 <button type="submit">Confirm</button>
             </form>
         </div>
-        <section id="attendance-mark" style="display:none;">
+
+        <section id="attendance-mark" class="card" style="display:none;">
             <h2>Mark Attendance</h2>
             <form id="attendance-form">
                 <div id="week-day-selectors"></div>
                 <div id="today-classes"></div>
                 <button type="submit">Submit Attendance</button>
             </form>
-            <div id="subject-modify-controls" style="margin: 16px 0;">
-                <button id="add-subject-btn" type="button">Add Subject for Date</button>
-                <button id="remove-subject-btn" type="button">Remove Subject for Date</button>
+            
+            <div id="subject-modify-controls">
+                <div id="modify-buttons-container">
+                    <button id="add-subject-btn-show" type="button">Add Subject for Date</button>
+                    <button id="remove-subject-btn-show" type="button">Remove Subject for Date</button>
+                </div>
+                
+                <form id="modify-subject-form" class="hidden">
+                    <h3 id="modify-form-title"></h3>
+                    <input type="hidden" id="modify-action" value="">
+                    
+                    <div>
+                        <label for="modify-date">Date</label>
+                        <input type="date" id="modify-date" required>
+                    </div>
+                    <div>
+                        <label for="modify-subject">Subject Name</label>
+                        <input type="text" id="modify-subject" required placeholder="e.g. Physics">
+                    </div>
+                    
+                    <div id="modify-attended-wrapper" class="hidden">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="modify-attended">
+                            <span>Did you attend this class?</span>
+                        </label>
+                    </div>
+                    <div id="new-date-fields" class="hidden">
+                         <div>
+                            <label for="modify-week">Week (1-4)</label>
+                            <input type="number" id="modify-week" min="1" max="4" value="1">
+                        </div>
+                        <div>
+                            <label for="modify-day">Day of Week (Auto-detected)</label>
+                            <input type="text" id="modify-day" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit">Confirm</button>
+                        <button type="button" id="cancel-modify">Cancel</button>
+                    </div>
+                </form>
             </div>
+
         </section>
-        <section id="results" style="display:none;">
+
+        <section id="results" class="card" style="display:none;">
             <h2>Attendance Results</h2>
             <div id="attendance-table-container"></div>
             <div id="all-months-attendance"></div>
-            <div id="cumulative-attendance"></div>
-            <div id="complete-attendance" style="display:none;">
+            <div id="complete-attendance">
                 <h2>Complete Attendance (All Months Till Date)</h2>
                 <div id="complete-attendance-table"></div>
             </div>
         </section>
+
+        <section id="danger-zone" class="card">
+            <h2>Settings</h2>
+            <p>Permanently delete all stored attendance data. This action cannot be undone.</p>
+            <button id="remove-all">Remove All Records</button>
+        </section>
+
     </div>
 
-    <script>
-const WEEKS = 4;
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-let timetable = {}; 
-let attendance = []; 
-let monthlyHistory = []; 
-let currentMonthName = null;
-
-function saveToLocal() {
-    localStorage.setItem('attendance_timetable', JSON.stringify(timetable));
-    localStorage.setItem('attendance_data', JSON.stringify(attendance));
-    localStorage.setItem('attendance_monthly_history', JSON.stringify(monthlyHistory));
-    localStorage.setItem('attendance_current_month', currentMonthName || '');
-}
-
-function loadFromLocal() {
-    timetable = JSON.parse(localStorage.getItem('attendance_timetable')) || {};
-    attendance = JSON.parse(localStorage.getItem('attendance_data')) || [];
-    monthlyHistory = JSON.parse(localStorage.getItem('attendance_monthly_history')) || [];
-    currentMonthName = localStorage.getItem('attendance_current_month') || null;
-}
-
-function createTimetableInputs() {
-    const container = document.getElementById('days-container');
-    container.innerHTML = '';
-    DAYS.forEach(day => {
-        container.appendChild(document.createElement('br'));
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = `Subjects for ${day} (comma separated)`;
-        input.id = `${day}`;
-        container.appendChild(document.createTextNode(`${day}: `));
-        container.appendChild(input);
-    });
-}
-
-function saveTimetable(e) {
-    e.preventDefault();
-    timetable = {};
-    DAYS.forEach(day => {
-        const val = document.getElementById(`${day}`).value.trim();
-        timetable[day] = val ? val.split(',').map(s => s.trim()).filter(Boolean) : [];
-    });
-    saveToLocal();
-    document.getElementById('timetable-setup').style.display = 'none';
-    showMonthControls();
-}
-
-function showMonthControls() {
-    const controls = document.getElementById('month-controls');
-    const newMonthBtn = document.getElementById('new-month-btn');
-    const newMonthForm = document.getElementById('new-month-form');
-    const monthNameInput = document.getElementById('month-name-input');
-
-    controls.style.display = '';
-    updateMonthLabel();
-
-    newMonthBtn.onclick = () => {
-        newMonthForm.style.display = '';
-        monthNameInput.value = '';
-        monthNameInput.focus();
-    };
-
-    newMonthForm.onsubmit = (e) => {
-        e.preventDefault();
-        const name = monthNameInput.value.trim();
-        if (!name) return;
-        if (currentMonthName && attendance.length) {
-            monthlyHistory.push({
-                monthName: currentMonthName,
-                attendance: JSON.parse(JSON.stringify(attendance))
-            });
-        }
-        currentMonthName = name;
-        attendance = [];
-        saveToLocal();
-        updateMonthLabel();
-        newMonthForm.style.display = 'none';
-        document.getElementById('attendance-mark').style.display = '';
-        showAttendanceForm();
-        showResults();
-    };
-}
-
-function updateMonthLabel() {
-    const label = document.getElementById('current-month-label');
-    label.textContent = currentMonthName ? `Current Month: ${currentMonthName}` : 'No month started';
-    document.getElementById('attendance-mark').style.display = currentMonthName ? '' : 'none';
-}
-
-function showAttendanceForm() {
-    const selectorsDiv = document.getElementById('week-day-selectors');
-    selectorsDiv.innerHTML = '';
-
-    const weekSelect = document.createElement('select');
-    weekSelect.id = 'attendance-week-select';
-    for (let w = 1; w <= WEEKS; w++) {
-        const opt = document.createElement('option');
-        opt.value = w;
-        opt.textContent = `Week ${w}`;
-        weekSelect.appendChild(opt);
-    }
-
-    const daySelect = document.createElement('select');
-    daySelect.id = 'attendance-day-select';
-    DAYS.forEach(day => {
-        const opt = document.createElement('option');
-        opt.value = day;
-        opt.textContent = day;
-        daySelect.appendChild(opt);
-    });
-
-    selectorsDiv.appendChild(document.createTextNode('Select Week: '));
-    selectorsDiv.appendChild(weekSelect);
-    selectorsDiv.appendChild(document.createTextNode(' Select Day: '));
-    selectorsDiv.appendChild(daySelect);
-
-    function renderSubjects() {
-        const todayDiv = document.getElementById('today-classes');
-        todayDiv.innerHTML = '';
-        const day = daySelect.value;
-        const dateInput = document.createElement('input');
-        dateInput.type = 'date';
-        dateInput.id = 'attendance-date';
-        todayDiv.appendChild(document.createTextNode('Date: '));
-        todayDiv.appendChild(dateInput);
-        todayDiv.appendChild(document.createElement('br'));
-        todayDiv.innerHTML += `<h3>${day}</h3>`;
-        const subjects = timetable[day] || [];
-        if (!subjects.length) {
-            todayDiv.innerHTML += '<p>No classes scheduled.</p>';
-        } else {
-            subjects.forEach(subject => {
-                const label = document.createElement('label');
-                label.innerHTML = `<input type="checkbox" name="subject" value="${subject}"> ${subject}`;
-                todayDiv.appendChild(label);
-                todayDiv.appendChild(document.createElement('br'));
-            });
-        }
-    }
-
-    weekSelect.addEventListener('change', renderSubjects);
-    daySelect.addEventListener('change', renderSubjects);
-
-    renderSubjects();
-}
-
-function submitAttendance(e) {
-    e.preventDefault();
-    if (!currentMonthName) {
-        alert('Please start a new month first.');
-        return;
-    }
-    const week = parseInt(document.getElementById('attendance-week-select').value);
-    const day = document.getElementById('attendance-day-select').value;
-    const date = document.getElementById('attendance-date').value;
-    const subjects = timetable[day] || [];
-    const attended = Array.from(document.querySelectorAll('input[name="subject"]:checked')).map(cb => cb.value);
-
-    attendance = attendance.filter(entry => !(entry.week === week && entry.day === day));
-
-    attendance.push({
-        week,
-        day,
-        date,
-        month: currentMonthName,
-        subjects: subjects.map(name => ({
-            name,
-            attended: attended.includes(name)
-        }))
-    });
-
-    saveToLocal();
-    showResults();
-}
-
-function showResults() {
-    document.getElementById('results').style.display = '';
-    showAttendanceTable();
-    showAllMonthsAttendance();
-    showCompleteAttendance(); // ✅ New function called
-}
-
-function showAttendanceTable() {
-    const container = document.getElementById('attendance-table-container');
-    container.innerHTML = '<h3>Attendance Table</h3>';
-    let table = `<table class="attendance-table">
-        <thead>
-            <tr>
-                <th>Week</th>
-                <th>Date</th>
-                <th>Day</th>
-                <th>Subjects</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
-    const sorted = [...attendance].sort((a, b) => {
-        if (a.week !== b.week) return a.week - b.week;
-        return DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
-    });
-    sorted.forEach(entry => {
-        table += `<tr>
-            <td>${entry.week}</td>
-            <td>${entry.date || ''}</td>
-            <td>${entry.day}</td>
-            <td>
-                ${entry.subjects.map(s =>
-                    `<span class="subject-cell">${s.name} ${s.attended ? '✅' : ''}</span>`
-                ).join('<br>')}
-            </td>
-        </tr>`;
-    });
-    table += '</tbody></table>';
-    container.innerHTML += table;
-}
-
-function showAllMonthsAttendance() {
-    const container = document.getElementById('all-months-attendance');
-    container.innerHTML = '<h3>All Months Attendance</h3>';
-    if (!monthlyHistory.length) {
-        container.innerHTML += '<p>No previous months stored.</p>';
-        return;
-    }
-    monthlyHistory.forEach(monthEntry => {
-        container.innerHTML += `<h4>${monthEntry.monthName}</h4>`;
-        let subjectTotals = {};
-        monthEntry.attendance.forEach(entry => {
-            entry.subjects.forEach(s => {
-                if (!subjectTotals[s.name]) subjectTotals[s.name] = {attended: 0, total: 0};
-                subjectTotals[s.name].total += 1;
-                if (s.attended) subjectTotals[s.name].attended += 1;
-            });
-        });
-        container.innerHTML += '<ul>';
-        Object.keys(subjectTotals).forEach(subject => {
-            const {attended, total} = subjectTotals[subject];
-            const percent = total ? ((attended / total) * 100).toFixed(2) : 'N/A';
-            container.innerHTML += `<li>${subject}: ${attended}/${total} (${percent}%)</li>`;
-        });
-        container.innerHTML += '</ul>';
-    });
-}
-
-/* ✅ New function to show Complete Attendance (All Months Combined) */
-function showCompleteAttendance() {
-    const container = document.getElementById('complete-attendance');
-    const tableDiv = document.getElementById('complete-attendance-table');
-    container.style.display = '';
-    tableDiv.innerHTML = '';
-
-    let subjectTotals = {};
-
-    if (Array.isArray(monthlyHistory)) {
-        monthlyHistory.forEach(monthEntry => {
-            monthEntry.attendance.forEach(entry => {
-                entry.subjects.forEach(s => {
-                    if (!subjectTotals[s.name]) subjectTotals[s.name] = {attended: 0, total: 0};
-                    subjectTotals[s.name].total += 1;
-                    if (s.attended) subjectTotals[s.name].attended += 1;
-                });
-            });
-        });
-    }
-
-    if (Array.isArray(attendance)) {
-        attendance.forEach(entry => {
-            entry.subjects.forEach(s => {
-                if (!subjectTotals[s.name]) subjectTotals[s.name] = {attended: 0, total: 0};
-                subjectTotals[s.name].total += 1;
-                if (s.attended) subjectTotals[s.name].attended += 1;
-            });
-        });
-    }
-
-    if (Object.keys(subjectTotals).length === 0) {
-        tableDiv.innerHTML = '<p>No attendance data available.</p>';
-        return;
-    }
-
-    let tableHTML = `<table class="attendance-table">
-        <thead><tr><th>Subject</th><th>Attended</th><th>Total</th><th>Percentage</th></tr></thead><tbody>`;
-    Object.keys(subjectTotals).forEach(subject => {
-        const {attended, total} = subjectTotals[subject];
-        const percent = total ? ((attended / total) * 100).toFixed(2) : 'N/A';
-        tableHTML += `<tr><td>${subject}</td><td>${attended}</td><td>${total}</td><td>${percent}%</td></tr>`;
-    });
-    tableHTML += '</tbody></table>';
-
-    tableDiv.innerHTML = tableHTML;
-}
-
-function removeAllRecords() {
-    if (confirm('Are you sure you want to remove all records?')) {
-        localStorage.clear();
-        timetable = {};
-        attendance = [];
-        monthlyHistory = [];
-        currentMonthName = null;
-        location.reload();
-    }
-}
-
-// Add event listeners after DOMContentLoaded
-window.addEventListener('DOMContentLoaded', () => {
-    loadFromLocal();
-    createTimetableInputs();
-    document.getElementById('timetable-form').addEventListener('submit', saveTimetable);
-    document.getElementById('attendance-form').addEventListener('submit', submitAttendance);
-    document.getElementById('remove-all').addEventListener('click', removeAllRecords);
-    document.getElementById('add-subject-btn').addEventListener('click', showAddSubjectDialog);
-    document.getElementById('remove-subject-btn').addEventListener('click', showRemoveSubjectDialog);
-    if (Object.keys(timetable).length) {
-        document.getElementById('timetable-setup').style.display = 'none';
-        showMonthControls();
-        if (currentMonthName) {
-            document.getElementById('attendance-mark').style.display = '';
-            showAttendanceForm();
-            showResults();
-        }
-    }
-});
-
-// Show dialog to add a subject for a specific date
-function showAddSubjectDialog() {
-    const date = prompt('Enter the date (YYYY-MM-DD) to add a subject:');
-    if (!date) return;
-    const subject = prompt('Enter the subject name to add:');
-    if (!subject) return;
-
-    // Find or create the attendance entry for this date
-    let entry = attendance.find(e => e.date === date);
-    if (!entry) {
-        // Ask for week and day
-        const week = prompt('Enter week number (1-4) for this date:');
-        const day = prompt('Enter day name (e.g. Monday):');
-        if (!week || !day) return;
-        entry = {
-            week: parseInt(week),
-            day: day,
-            date: date,
-            month: currentMonthName,
-            subjects: []
-        };
-        attendance.push(entry);
-    }
-    // Prevent duplicate
-    if (!entry.subjects.some(s => s.name === subject)) {
-        entry.subjects.push({ name: subject, attended: false });
-        saveToLocal();
-        showResults();
-        alert(`Subject "${subject}" added for ${date}.`);
-    } else {
-        alert('Subject already exists for this date.');
-    }
-}
-
-// Show dialog to remove a subject for a specific date
-function showRemoveSubjectDialog() {
-    const date = prompt('Enter the date (YYYY-MM-DD) to remove a subject:');
-    if (!date) return;
-    let entry = attendance.find(e => e.date === date);
-    if (!entry) {
-        alert('No attendance entry found for this date.');
-        return;
-    }
-    const subject = prompt('Enter the subject name to remove:');
-    if (!subject) return;
-    const idx = entry.subjects.findIndex(s => s.name === subject);
-    if (idx !== -1) {
-        entry.subjects.splice(idx, 1);
-        saveToLocal();
-        showResults();
-        alert(`Subject "${subject}" removed for ${date}.`);
-    } else {
-        alert('Subject not found for this date.');
-    }
-}
-    </script>
 </body>
 </html>

@@ -1,60 +1,407 @@
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    margin: 0;
-    padding: 20px;
+/* --- CSS Variables (Theme) --- */
+:root {
+    --primary-accent: #007aff;
+    --danger-color: #ff3b30;
+    --danger-hover: #e02b20;
+    --text-dark: #1d1d1f;
+    --text-light: #4a4a4f;
+    --bg-white: rgba(255, 255, 255, 0.45);
+    --border-color: rgba(255, 255, 255, 0.2);
+    --shadow-color: rgba(31, 38, 135, 0.15);
+    --shadow-hover: rgba(31, 38, 135, 0.25);
+    --border-radius-lg: 1rem; /* 16px */
+    --border-radius-md: 0.75rem; /* 12px */
 }
 
+/* --- Global Reset & Base --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f5f5f7; /* Fallback */
+    color: var(--text-dark);
+    line-height: 1.6;
+    padding: 20px;
+    overflow-x: hidden; /* Prevents horizontal scroll from animations */
+}
+
+/* --- Keyframe Animations --- */
+@keyframes gradientBG {
+    0% { transform: translate(0%, -25%) rotate(0deg); }
+    25% { transform: translate(10%, 10%) rotate(45deg); }
+    50% { transform: translate(0%, 25%) rotate(90deg); }
+    75% { transform: translate(-10%, -10%) rotate(135deg); }
+    100% { transform: translate(0%, -25%) rotate(180deg); }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        max-height: 500px; /* Set to a large enough value */
+        transform: translateY(0);
+    }
+}
+
+
+/* --- Dynamic Background --- */
+.background-shapes {
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    z-index: -1;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 25%, #89f7fe 50%, #66a6ff 75%, #a1c4fd 100%);
+    animation: gradientBG 40s ease-in-out infinite;
+}
+
+/* --- Layout --- */
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+/* --- Card (Glassmorphism) --- */
+.card {
+    background: var(--bg-white);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px 0 var(--shadow-color);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+
+    /* Animation */
+    opacity: 0; /* Start hidden for animation */
+    animation: slideInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px 0 var(--shadow-hover);
+}
+
+/* Staggered load animation */
+#timetable-setup { animation-delay: 0.1s; }
+#month-controls { animation-delay: 0.2s; }
+#attendance-mark { animation-delay: 0.3s; }
+#results { animation-delay: 0.4s; }
+#danger-zone { animation-delay: 0.5s; }
+
+
+/* --- Typography --- */
 h1 {
     text-align: center;
-    color: #333;
+    font-size: 2.5rem;
+    color: #fff;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    animation: slideInUp 0.5s ease-out forwards;
 }
 
-.container {
-    max-width: 600px;
-    margin: 0 auto;
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+h2 {
+    color: var(--text-dark);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
 }
 
-form {
-    display: flex;
-    flex-direction: column;
+h3, h4 {
+    color: var(--text-dark);
+    margin: 1.5rem 0 1rem 0;
 }
 
-label {
-    margin-bottom: 5px;
-    font-weight: bold;
-}
+ul { padding-left: 20px; }
+li { margin-bottom: 0.5rem; }
 
+/* --- Forms & Inputs --- */
 input[type="text"],
+input[type="date"],
 input[type="number"],
 select {
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-family: 'Manrope', sans-serif;
+    color: var(--text-dark);
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--border-radius-md);
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-button {
-    padding: 10px;
-    background-color: #c5bd4a;
-    color: white;
-    border: none;
-    border-radius: 4px;
+input[type="text"]::placeholder { color: var(--text-light); }
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+#days-container br { display: none; }
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+select:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.8);
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 10px 0 rgba(0, 122, 255, 0.2);
+}
+
+input[readonly] {
+    background: rgba(0, 0, 0, 0.05);
+    cursor: not-allowed;
+}
+
+#today-classes label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-md);
+    background: rgba(255, 255, 255, 0.2);
+    transition: background-color 0.2s ease;
+}
+
+#today-classes label:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+#today-classes input[type="checkbox"] {
+    margin-right: 0.75rem;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: middle;
+    accent-color: var(--primary-accent);
+}
+
+/* NEW: Checkbox Label Style */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-md);
+    background: rgba(255, 255, 255, 0.2);
+    margin-bottom: 1rem;
     cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
-button:hover {
-    background-color: #85a70c;
+.checkbox-label:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
-.results {
-    margin-top: 20px;
-    padding: 10px;
-    background-color: #e9ecef;
-    border-radius: 4px;
+.checkbox-label input[type="checkbox"] {
+    width: 1.2em;
+    height: 1.2em;
+    accent-color: var(--primary-accent);
+}
+
+.checkbox-label span {
+    font-weight: 600;
+}
+/* END NEW */
+
+
+/* --- Buttons --- */
+button, input[type="submit"] {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--primary-accent);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
     text-align: center;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button:hover, input[type="submit"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px 0 rgba(0, 122, 255, 0.3);
+}
+
+/* --- Subject Modify Controls --- */
+#subject-modify-controls {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+#modify-buttons-container {
+    display: flex;
+    gap: 10px;
+}
+
+#modify-buttons-container button {
+    flex-grow: 1;
+    background-color: var(--text-light);
+}
+#modify-buttons-container button:hover {
+    background-color: var(--text-dark);
+    box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.15);
+}
+
+#modify-subject-form {
+    animation: slideInDown 0.4s ease-out;
+    overflow: hidden;
+}
+
+#new-date-fields {
+    animation: slideInDown 0.4s ease-out;
+    overflow: hidden;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 1rem;
+}
+.form-actions button[type="button"] {
+    background: var(--text-light);
+}
+.form-actions button[type="button"]:hover {
+    background: var(--text-dark);
+    box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Utility Class */
+.hidden {
+    display: none;
+}
+
+
+/* --- Month Controls --- */
+.month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+#current-month-label {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+#new-month-form {
+    display: flex;
+    gap: 10px;
+}
+#new-month-form input { flex-grow: 1; margin-bottom: 0; }
+#new-month-form button { padding: 0.75rem 1rem; }
+
+/* --- Table --- */
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+.attendance-table th,
+.attendance-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.attendance-table th {
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.attendance-table tr:last-child td {
+    border-bottom: none;
+}
+
+.attendance-table tr:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.subject-cell {
+    display: inline-block;
+    margin: 3px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.05);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* --- Danger Zone --- */
+#danger-zone {
+    border-color: var(--danger-color);
+    background: rgba(255, 59, 48, 0.1);
+}
+#danger-zone h2 {
+    color: var(--danger-color);
+    border-color: rgba(255, 59, 48, 0.2);
+}
+#danger-zone p {
+    color: var(--danger-hover);
+    margin-bottom: 1rem;
+}
+#remove-all {
+    /* Removed float */
+    background: var(--danger-color);
+}
+#remove-all:hover {
+    background: var(--danger-hover);
+    box-shadow: 0 6px 20px 0 rgba(255, 59, 48, 0.3);
+}
+
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+    body { padding: 10px; }
+    .card { padding: 1rem; }
+    h1 { font-size: 1.75rem; }
+    
+    .month-header,
+    #new-month-form, 
+    #modify-buttons-container,
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    #modify-buttons-container button,
+    .form-actions button {
+        width: 100%;
+    }
+
+    #new-month-form button { width: 100%; }
 }
