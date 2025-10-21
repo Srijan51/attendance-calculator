@@ -168,7 +168,8 @@ function showAttendanceForm() {
 function submitAttendance(e) {
     e.preventDefault();
     if (!currentMonthName) {
-        alert('Please start a new month first.');
+        // MODIFIED: Replaced alert()
+        showNotification('Please start a new month first.', 'info');
         return;
     }
     const week = parseInt(document.getElementById('attendance-week-select').value);
@@ -201,7 +202,6 @@ function showResults() {
     showCompleteAttendance(); 
 }
 
-// ### THIS IS THE ONLY FUNCTION THAT CHANGED ###
 function showAttendanceTable() {
     const container = document.getElementById('attendance-table-container');
     container.innerHTML = '<h3>Current Month Attendance</h3>';
@@ -238,7 +238,6 @@ function showAttendanceTable() {
     table += '</tbody></table>';
     container.innerHTML += table;
 }
-// ### END OF CHANGED FUNCTION ###
 
 function showAllMonthsAttendance() {
     const container = document.getElementById('all-months-attendance');
@@ -314,15 +313,115 @@ function showCompleteAttendance() {
     tableDiv.innerHTML = tableHTML;
 }
 
-function removeAllRecords() {
-    if (confirm('Are you sure you want to remove all records? This action cannot be undone.')) {
-        localStorage.clear();
-        timetable = {};
-        attendance = [];
-        monthlyHistory = [];
-        currentMonthName = null;
-        location.reload();
+// --- UPDATED: Custom Notification Logic ---
+
+// Store the callback for the confirm action
+let notificationConfirmCallback = null;
+
+/**
+ * Shows a custom notification or confirmation.
+ * @param {string} message The message to display.
+ * @param {'info' | 'success' | 'error' | 'confirm'} type The type of notification.
+ * @param {function | null} callback The function to run if 'confirm' is pressed.
+ * @param {string} title Optional custom title.
+ */
+function showNotification(message, type = 'info', callback = null, title = '') {
+    const overlay = document.getElementById('custom-notification-overlay');
+    const titleEl = document.getElementById('custom-notification-title');
+    const messageEl = document.getElementById('custom-notification-message');
+    const iconEl = document.querySelector('.notification-icon');
+    const okBtn = document.getElementById('custom-notification-ok');
+    const confirmBtn = document.getElementById('custom-notification-confirm');
+    const cancelBtn = document.getElementById('custom-notification-cancel');
+
+    messageEl.textContent = message;
+    notificationConfirmCallback = callback;
+    iconEl.className = 'notification-icon'; // Reset icon class
+
+    // Hide all buttons initially
+    okBtn.style.display = 'none';
+    confirmBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+
+    switch (type) {
+        case 'confirm':
+            titleEl.textContent = title || 'Are you sure?';
+            iconEl.innerHTML = '❓';
+            iconEl.classList.add('notification-icon-confirm');
+            confirmBtn.style.display = 'inline-block';
+            cancelBtn.style.display = 'inline-block';
+            break;
+        case 'success':
+            titleEl.textContent = title || 'Success';
+            iconEl.innerHTML = '✅';
+            iconEl.classList.add('notification-icon-success');
+            okBtn.style.display = 'inline-block';
+            break;
+        case 'error':
+            titleEl.textContent = title || 'Error';
+            iconEl.innerHTML = '❌';
+            iconEl.classList.add('notification-icon-error');
+            okBtn.style.display = 'inline-block';
+            break;
+        case 'info':
+        default:
+            titleEl.textContent = title || 'Notification';
+            iconEl.innerHTML = 'ℹ️';
+            iconEl.classList.add('notification-icon-info');
+            okBtn.style.display = 'inline-block';
+            break;
     }
+
+    overlay.classList.remove('hidden', 'is-hiding'); // Show modal
+}
+
+/**
+ * Hides the custom notification with animation.
+ */
+function hideNotification() {
+    const overlay = document.getElementById('custom-notification-overlay');
+    overlay.classList.add('is-hiding'); // Add class to trigger exit animation
+
+    // Wait for animation to finish, then hide
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('is-hiding');
+        notificationConfirmCallback = null;
+    }, 300); // Must match the CSS transition duration
+}
+
+/**
+ * Sets up the event listeners for the custom notification buttons.
+ */
+function setupNotificationListeners() {
+    document.getElementById('custom-notification-ok').addEventListener('click', hideNotification);
+    document.getElementById('custom-notification-cancel').addEventListener('click', hideNotification);
+    document.getElementById('custom-notification-confirm').addEventListener('click', () => {
+        if (typeof notificationConfirmCallback === 'function') {
+            notificationConfirmCallback();
+        }
+        hideNotification();
+    });
+}
+
+// --- End Custom Notification Logic ---
+
+
+function removeAllRecords() {
+    // MODIFIED: Replaced confirm() with new notification
+    showNotification(
+        'Are you sure you want to remove all records? This action cannot be undone.',
+        'confirm',
+        () => {
+            // This is the code that runs on confirm
+            localStorage.clear();
+            timetable = {};
+            attendance = [];
+            monthlyHistory = [];
+            currentMonthName = null;
+            location.reload();
+        }
+    );
 }
 
 // --- EFFICIENT ADD/REMOVE LOGIC ---
@@ -367,7 +466,8 @@ function handleModifySubject(e) {
     const subject = document.getElementById('modify-subject').value;
     
     if (!date || !subject) {
-        alert('Please fill in both date and subject name.');
+        // MODIFIED: Replaced alert()
+        showNotification('Please fill in both date and subject name.', 'error', null, 'Missing Information');
         return;
     }
     
@@ -382,7 +482,8 @@ function handleModifySubject(e) {
             const day = document.getElementById('modify-day').value;
             
             if (!week || !day) {
-                alert('Error: Week and Day are required for a new date.');
+                // MODIFIED: Replaced alert()
+                showNotification('Error: Week and Day are required for a new date.', 'error');
                 return;
             }
             
@@ -399,23 +500,28 @@ function handleModifySubject(e) {
         // Add subject if it doesn't exist
         if (!entry.subjects.some(s => s.name === subject)) {
             entry.subjects.push({ name: subject, attended: attended }); // Use the checkbox value
-            alert(`Subject "${subject}" added for ${date} (Attended: ${attended ? 'Yes' : 'No'}).`);
+            // MODIFIED: Replaced alert()
+            showNotification(`Subject "${subject}" added for ${date} (Attended: ${attended ? 'Yes' : 'No'}).`, 'success');
         } else {
-            alert('Subject already exists for this date.');
+            // MODIFIED: Replaced alert()
+            showNotification('Subject already exists for this date.', 'error');
         }
         
     } else if (action === 'remove') {
         if (!entry) {
-            alert('No attendance entry found for this date.');
+            // MODIFIED: Replaced alert()
+            showNotification('No attendance entry found for this date.', 'error');
             return;
         }
         
         const idx = entry.subjects.findIndex(s => s.name === subject);
         if (idx !== -1) {
             entry.subjects.splice(idx, 1);
-            alert(`Subject "${subject}" removed for ${date}.`);
+            // MODIFIED: Replaced alert()
+            showNotification(`Subject "${subject}" removed for ${date}.`, 'success');
         } else {
-            alert('Subject not found for this date.');
+            // MODIFIED: Replaced alert()
+            showNotification('Subject not found for this date.', 'error');
         }
     }
     
@@ -468,6 +574,8 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modify-subject-form').addEventListener('submit', handleModifySubject);
     document.getElementById('modify-date').addEventListener('change', checkNewDate);
 
+    // NEW: Add listener for custom notification
+    setupNotificationListeners();
     
     // This logic runs on page load
     if (Object.keys(timetable).length) {
