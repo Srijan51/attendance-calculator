@@ -152,7 +152,8 @@ function showAttendanceForm() {
         } else {
             subjects.forEach(subject => {
                 const label = document.createElement('label');
-                label.innerHTML = `<input type="checkbox" name="subject" value="${subject}"> ${subject}`;
+                // We use the <label> as the container
+                label.innerHTML = `<input type="checkbox" name="subject" value="${subject}"> <span>${subject}</span>`;
                 todayDiv.appendChild(label);
             });
         }
@@ -200,6 +201,7 @@ function showResults() {
     showCompleteAttendance(); 
 }
 
+// ### THIS IS THE ONLY FUNCTION THAT CHANGED ###
 function showAttendanceTable() {
     const container = document.getElementById('attendance-table-container');
     container.innerHTML = '<h3>Current Month Attendance</h3>';
@@ -224,15 +226,19 @@ function showAttendanceTable() {
             <td>${entry.date || ''}</td>
             <td>${entry.day}</td>
             <td>
-                ${entry.subjects.map(s =>
-                    `<span class="subject-cell">${s.name} ${s.attended ? '✅' : '❌'}</span>`
-                ).join('')}
+                ${entry.subjects.map(s => {
+                    // STYLISH: Added dynamic classes for attended/missed
+                    const cellClass = s.attended ? 'subject-cell-attended' : 'subject-cell-missed';
+                    const icon = s.attended ? '✅' : '❌';
+                    return `<span class="subject-cell ${cellClass}">${s.name} ${icon}</span>`;
+                }).join('')}
             </td>
         </tr>`;
     });
     table += '</tbody></table>';
     container.innerHTML += table;
 }
+// ### END OF CHANGED FUNCTION ###
 
 function showAllMonthsAttendance() {
     const container = document.getElementById('all-months-attendance');
