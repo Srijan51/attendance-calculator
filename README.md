@@ -26,7 +26,7 @@ attendance-calculator
 
 1. Clone the repository:
    ```
-   git clone <repository-url>
+   git clone <https://github.com/Srijan51/attendance-calculator>
    ```
 
 2. Navigate to the project directory:
