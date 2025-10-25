@@ -52,8 +52,133 @@ function saveTimetable(e) {
     });
     saveToLocal();
     document.getElementById('timetable-setup').style.display = 'none';
+
+    // MODIFIED: Show previous attendance form instead of month controls
+    createPreviousAttendanceInputs();
+    // showMonthControls(); // This is now called by the previous attendance form handlers
+}
+
+// --- NEW FEATURE: Previous Attendance ---
+
+/**
+ * Helper function to get a unique list of all subjects from the timetable
+ */
+function getUniqueSubjects() {
+    const allSubjects = Object.values(timetable).flat(); // Get all subjects from all days
+    return [...new Set(allSubjects)]; // Return a unique set
+}
+
+/**
+ * Creates the input fields for setting previous attendance data.
+ */
+function createPreviousAttendanceInputs() {
+    const container = document.getElementById('previous-subjects-container');
+    container.innerHTML = ''; // Clear previous
+    const subjects = getUniqueSubjects();
+
+    if (subjects.length === 0) {
+        // No subjects in timetable, just skip this step
+        showMonthControls();
+        return;
+    }
+
+    subjects.forEach(subject => {
+        const div = document.createElement('div');
+        div.className = 'previous-subject-entry';
+        
+        // Simpler layout: Label, Input, % sign
+        div.innerHTML = `
+            <label for="prev-percent-${subject}">${subject}</label>
+            <div class="input-wrapper">
+                <input type="number" id="prev-percent-${subject}" min="0" max="100" step="0.01" value="75.00" placeholder="e.g. 75">
+                <span class="percent-sign">%</span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+
+    document.getElementById('previous-attendance-setup').style.display = 'block';
+}
+
+/**
+ * Saves the previous attendance data to monthlyHistory.
+ * We assume a baseline of 100 classes for this calculation.
+ */
+function savePreviousAttendance(e) {
+    e.preventDefault();
+    const subjects = getUniqueSubjects();
+    let previousSubjects = [];
+    let hasErrors = false;
+    const BASE_TOTAL = 100; // Assume 100 classes as a baseline
+
+    for (const subject of subjects) {
+        const percentInput = document.getElementById(`prev-percent-${subject}`);
+        const percentage = parseFloat(percentInput.value) || 0;
+
+        if (percentage < 0 || percentage > 100) {
+            showNotification(`For ${subject}, percentage must be between 0 and 100.`, 'error', null, 'Input Error');
+            percentInput.focus();
+            hasErrors = true;
+            break; // Stop processing
+        }
+
+        // Calculate attended/missed based on the 100 baseline
+        const attended = Math.round(BASE_TOTAL * (percentage / 100));
+        const missed = BASE_TOTAL - attended;
+
+        if (attended > 0) {
+            // Add 'attended' entries
+            for (let i = 0; i < attended; i++) {
+                previousSubjects.push({ name: subject, attended: true });
+            }
+        }
+        if (missed > 0) {
+            // Add 'missed' entries
+            for (let i = 0; i < missed; i++) {
+                previousSubjects.push({ name: subject, attended: false });
+            }
+        }
+    }
+
+    if (hasErrors) return; // Don't save if there was an error
+
+    if (previousSubjects.length > 0) {
+        // Remove any existing "Previous Data" to avoid duplicates
+        monthlyHistory = monthlyHistory.filter(m => m.monthName !== "Previous Data");
+
+        // Create a single dummy attendance entry holding all subjects
+        const previousEntry = {
+            week: 0,
+            day: 'N/A',
+            date: 'N/A',
+            month: 'Previous Data',
+            subjects: previousSubjects
+        };
+
+        const monthEntry = {
+            monthName: "Previous Data",
+            attendance: [previousEntry]
+        };
+
+        monthlyHistory.push(monthEntry);
+        saveToLocal();
+    }
+
+    document.getElementById('previous-attendance-setup').style.display = 'none';
+    showMonthControls();
+    showNotification('Previous attendance data saved successfully.', 'success');
+}
+
+/**
+ * Skips the previous attendance step.
+ */
+function skipPreviousAttendance() {
+    document.getElementById('previous-attendance-setup').style.display = 'none';
     showMonthControls();
 }
+
+// --- END NEW FEATURE ---
+
 
 function showMonthControls() {
     const controls = document.getElementById('month-controls');
@@ -242,11 +367,16 @@ function showAttendanceTable() {
 function showAllMonthsAttendance() {
     const container = document.getElementById('all-months-attendance');
     container.innerHTML = '<h3>Previous Months</h3>';
-    if (!monthlyHistory.length) {
+    
+    // MODIFIED: Filter out the "Previous Data" entry from this view
+    const visibleHistory = monthlyHistory.filter(m => m.monthName !== "Previous Data");
+
+    if (!visibleHistory.length) {
         container.innerHTML += '<p>No previous months stored.</p>';
         return;
     }
-    monthlyHistory.forEach(monthEntry => {
+    
+    visibleHistory.forEach(monthEntry => {
         container.innerHTML += `<h4>${monthEntry.monthName}</h4>`;
         let subjectTotals = {};
         monthEntry.attendance.forEach(entry => {
@@ -274,6 +404,9 @@ function showCompleteAttendance() {
 
     let subjectTotals = {};
 
+    // This logic is unchanged, as it will
+    // automatically pick up the "Previous Data"
+    // from monthlyHistory.
     if (Array.isArray(monthlyHistory)) {
         monthlyHistory.forEach(monthEntry => {
             monthEntry.attendance.forEach(entry => {
@@ -567,6 +700,11 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('attendance-form').addEventListener('submit', submitAttendance);
     document.getElementById('remove-all').addEventListener('click', removeAllRecords);
     
+    // --- START NEW LISTENERS ---
+    document.getElementById('previous-attendance-form').addEventListener('submit', savePreviousAttendance);
+    document.getElementById('skip-previous-btn').addEventListener('click', skipPreviousAttendance);
+    // --- END NEW LISTENERS ---
+    
     // NEW Modify Form Listeners
     document.getElementById('add-subject-btn-show').addEventListener('click', () => toggleModifyForm(true, 'add'));
     document.getElementById('remove-subject-btn-show').addEventListener('click', () => toggleModifyForm(true, 'remove'));
@@ -580,11 +718,21 @@ window.addEventListener('DOMContentLoaded', () => {
     // This logic runs on page load
     if (Object.keys(timetable).length) {
         document.getElementById('timetable-setup').style.display = 'none';
-        showMonthControls(); 
-        if (currentMonthName) {
-            document.getElementById('attendance-mark').style.display = 'block';
-            showAttendanceForm();
-            showResults(); 
+
+        // MODIFIED: Check if "Previous Data" has already been entered or skipped.
+        const hasPreviousData = monthlyHistory.some(m => m.monthName === "Previous Data");
+
+        if (!currentMonthName && !hasPreviousData) {
+            // User saved timetable but hasn't entered/skipped previous data
+            createPreviousAttendanceInputs();
+        } else {
+            // User has already set up everything, show normal controls
+            showMonthControls(); 
+            if (currentMonthName) {
+                document.getElementById('attendance-mark').style.display = 'block';
+                showAttendanceForm();
+                showResults(); 
+            }
         }
     }
 });
