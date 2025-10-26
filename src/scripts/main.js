@@ -10,8 +10,6 @@ try {
     console.error("Error registering ChartDataLabels plugin:", e);
 }
 
-
-const WEEKS = 4;
 // Note: JS Date.getDay() is 0-indexed (Sun=0, Mon=1), but our array is Mon=0.
 // This new array matches the Date.getDay() index for easier lookups.
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -20,9 +18,9 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 // Default subject colors
 const DEFAULT_COLORS = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5856d6', '#ff2d55', '#ffcc00'];
 
-let timetable = {}; // { week: { day: [subjectName, ...] } }
+let timetable = {}; // { day: [subjectName, ...] }
 let subjectsMaster = {}; // { subjectName: { color: '#...', icon: '🧪' } }
-let attendance = []; // { week, day, date, month, subjects: [{ name, attended }], note: '...' }
+let attendance = []; // { day, date, month, subjects: [{ name, attended }] }
 let monthlyHistory = [];
 let currentMonthName = null;
 let attendanceChart = null; // Variable to hold the chart instance
@@ -73,35 +71,42 @@ function loadFromLocal() {
 function migrateOldData() {
     let needsSave = false;
     try {
-        // Migrate timetable (if it's flat)
-        if (!timetable['1'] && Object.keys(timetable).length > 0 && !Array.isArray(timetable)) { // Added check for array
-            console.log("Migrating old timetable format...");
+        // Migrate timetable (if it has week keys '1', '2', etc.)
+        if (timetable['1'] && typeof timetable['1'] === 'object') {
+            console.log("Migrating old multi-week timetable format to single timetable...");
             const oldTimetable = JSON.parse(JSON.stringify(timetable));
-            timetable = { '1': {}, '2': {}, '3': {}, '4': {} };
+            timetable = {}; // New simple format
+            // Use Week 1 as the source of truth
             DAYS.forEach(day => {
-                if (oldTimetable[day] && Array.isArray(oldTimetable[day])) {
-                     const subjectNames = oldTimetable[day].map(s => typeof s === 'object' ? s.name : s).filter(Boolean); // Filter out empty/null
-                     for (let w = 1; w <= WEEKS; w++) { timetable[w][day] = [...subjectNames]; }
-                     subjectNames.forEach(name => { if (name && !subjectsMaster[name]) { addSubjectToMaster(name); } });
+                if (oldTimetable['1'][day] && Array.isArray(oldTimetable['1'][day])) {
+                     const subjectNames = oldTimetable['1'][day].map(s => typeof s === 'object' ? s.name : s).filter(Boolean);
+                     timetable[day] = [...subjectNames];
+                     subjectNames.forEach(name => { if (name && !subjectsMaster[name]) addSubjectToMaster(name); });
                 } else {
-                     for (let w = 1; w <= WEEKS; w++) { timetable[w][day] = []; }
+                     timetable[day] = [];
                 }
             });
             needsSave = true;
         } else {
-            // Ensure all weeks/days exist and check master
-            for (let w = 1; w <= WEEKS; w++) {
-                if (!timetable[w]) timetable[w] = {};
-                DAYS.forEach(day => {
-                    if (!timetable[w][day]) timetable[w][day] = [];
-                    timetable[w][day].forEach(name => { if (name && !subjectsMaster[name]) addSubjectToMaster(name); })
-                });
-            }
+            // Ensure all days exist and check master
+            DAYS.forEach(day => {
+                if (!timetable[day]) timetable[day] = [];
+                timetable[day].forEach(name => { if (name && !subjectsMaster[name]) addSubjectToMaster(name); })
+            });
         }
 
-        // Migrate attendance data
+        // Migrate attendance data (remove week, remove note)
         const migrateEntrySubjects = (entry) => {
              let migrated = false;
+             if (entry && entry.hasOwnProperty('week')) { // Check for old week property
+                delete entry.week;
+                migrated = true;
+             }
+             if (entry && entry.hasOwnProperty('note')) { // Check for old note property
+                delete entry.note;
+                migrated = true;
+             }
+
              if (entry && entry.subjects && entry.subjects.length > 0 && (typeof entry.subjects[0] !== 'object' || !entry.subjects[0]?.hasOwnProperty('attended'))) {
                 console.log("Migrating old attendance subject format...");
                 entry.subjects = entry.subjects.map(subj => {
@@ -113,6 +118,7 @@ function migrateOldData() {
                 }).filter(Boolean); // Remove null entries from invalid data
                 migrated = true;
              } else if (entry && entry.subjects) {
+                // Ensure subjects from valid entries are in master list
                 entry.subjects.forEach(subj => { if (subj && subj.name && !subjectsMaster[subj.name]) addSubjectToMaster(subj.name); });
              }
              return migrated;
@@ -155,37 +161,17 @@ function addSubjectToMaster(name) {
 
 function createTimetableInputs() {
     renderSubjectMasterList();
-    for (let w = 1; w <= WEEKS; w++) {
-        const container = document.getElementById(`days-container-${w}`);
-        if (!container) continue; // Safety check
-        container.innerHTML = '';
-        DAYS.forEach(day => {
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'day-input-group';
-            // Ensure timetable[w] and timetable[w][day] exist before join
-            const subjectsString = (timetable[w]?.[day] || []).join(', ');
-            dayDiv.innerHTML = `<label for="${w}-${day}">${day}:</label>
-                               <input type="text" placeholder="Subjects (comma separated)" id="${w}-${day}" value="${subjectsString}">`;
-            container.appendChild(dayDiv);
-        });
-    }
-    setupTimetableTabs(); // Setup tab switching
-}
-
-function setupTimetableTabs() {
-    const tabLinks = document.querySelectorAll('#timetable-setup .tab-link');
-    const tabContents = document.querySelectorAll('#timetable-setup .tab-content');
-    if (!tabLinks.length || !tabContents.length) return; // Exit if elements not found
-
-    tabLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            const week = link.dataset.week;
-            tabLinks.forEach(l => l.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            link.classList.add('active');
-            const content = document.getElementById(`days-container-${week}`);
-            if (content) content.classList.add('active');
-        });
+    const container = document.getElementById(`days-container`);
+    if (!container) return; // Safety check
+    container.innerHTML = '';
+    DAYS.forEach(day => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day-input-group';
+        // Ensure timetable[day] exist before join
+        const subjectsString = (timetable[day] || []).join(', ');
+        dayDiv.innerHTML = `<label for="${day}">${day}:</label>
+                           <input type="text" placeholder="Subjects (comma separated)" id="${day}" value="${subjectsString}">`;
+        container.appendChild(dayDiv);
     });
 }
 
@@ -274,18 +260,16 @@ function updateUIColors() {
 
 function saveTimetable(e) {
     e.preventDefault();
-    timetable = { '1': {}, '2': {}, '3': {}, '4': {} };
+    timetable = {};
     const newMasterSubjects = new Set();
 
-    for (let w = 1; w <= WEEKS; w++) {
-        DAYS.forEach(day => {
-            const inputEl = document.getElementById(`${w}-${day}`);
-            const inputVal = inputEl ? inputEl.value.trim() : '';
-            const subjectNames = inputVal ? inputVal.split(',').map(s => s.trim()).filter(Boolean) : [];
-            timetable[w][day] = subjectNames;
-            subjectNames.forEach(name => { if(name) { addSubjectToMaster(name); newMasterSubjects.add(name); } });
-        });
-    }
+    DAYS.forEach(day => {
+        const inputEl = document.getElementById(`${day}`);
+        const inputVal = inputEl ? inputEl.value.trim() : '';
+        const subjectNames = inputVal ? inputVal.split(',').map(s => s.trim()).filter(Boolean) : [];
+        timetable[day] = subjectNames;
+        subjectNames.forEach(name => { if(name) { addSubjectToMaster(name); newMasterSubjects.add(name); } });
+    });
 
     saveToLocal();
     renderSubjectMasterList();
@@ -299,10 +283,10 @@ function handleDeleteSubject(e) {
      showNotification(
         `Delete "${subjectName}"? It will be removed from all timetables and past records. Cannot be undone.`, 'confirm', () => {
             delete subjectsMaster[subjectName];
-            for (let w = 1; w <= WEEKS; w++) { DAYS.forEach(day => { if (timetable[w]?.[day]) { timetable[w][day] = timetable[w][day].filter(name => name !== subjectName); } }); }
+            DAYS.forEach(day => { if (timetable[day]) { timetable[day] = timetable[day].filter(name => name !== subjectName); } });
             attendance.forEach(entry => { entry.subjects = entry.subjects?.filter(subj => subj.name !== subjectName); });
-            attendance = attendance.filter(entry => entry.subjects?.length > 0 || entry.note);
-            monthlyHistory.forEach(month => { month.attendance?.forEach(entry => { entry.subjects = entry.subjects?.filter(subj => subj.name !== subjectName); }); month.attendance = month.attendance?.filter(entry => entry.subjects?.length > 0 || entry.note); });
+            attendance = attendance.filter(entry => entry.subjects?.length > 0); // Removed note check
+            monthlyHistory.forEach(month => { month.attendance?.forEach(entry => { entry.subjects = entry.subjects?.filter(subj => subj.name !== subjectName); }); month.attendance = month.attendance?.filter(entry => entry.subjects?.length > 0); }); // Removed note check
             saveToLocal();
             createTimetableInputs(); // Rebuild timetable UI
             updateUIAfterDelete(); // Update other relevant UI parts
@@ -323,12 +307,9 @@ function updateUIAfterDelete() {
 
 function getUniqueSubjectNamesFromTimetable() {
     const allSubjectNames = new Set();
-     for (let w = 1; w <= WEEKS; w++) {
-        if (!timetable[w]) continue;
-        Object.values(timetable[w]).flat().forEach(name => {
-            if (name) allSubjectNames.add(name);
-        });
-    }
+    Object.values(timetable).flat().forEach(name => {
+        if (name) allSubjectNames.add(name);
+    });
     return [...allSubjectNames].sort();
 }
 
@@ -387,7 +368,7 @@ function savePreviousAttendance(e) {
     monthlyHistory = monthlyHistory.filter(m => m.monthName !== "Previous Data");
 
     if (previousSubjects.length > 0) {
-        const previousEntry = { week: 0, day: 'N/A', date: 'N/A', month: 'Previous Data', subjects: previousSubjects, note: "Baseline data" };
+        const previousEntry = { day: 'N/A', date: 'N/A', month: 'Previous Data', subjects: previousSubjects }; // Removed week and note
         monthlyHistory.push({ monthName: "Previous Data", attendance: [previousEntry] });
     } else if (!monthlyHistory.some(m => m.monthName === "Previous Data")) {
          monthlyHistory.push({ monthName: "Previous Data", attendance: [] });
@@ -457,14 +438,9 @@ function updateMonthLabel() {
 }
 
 function showAttendanceForm() {
-    const selectorsDiv = document.getElementById('week-day-selectors');
-    const noteInput = document.getElementById('attendance-note');
-    if (!selectorsDiv || !noteInput) return;
+    const selectorsDiv = document.getElementById('date-day-selectors');
+    if (!selectorsDiv) return;
     selectorsDiv.innerHTML = '';
-
-    const weekLabel = document.createElement('label'); weekLabel.htmlFor = 'attendance-week-select'; weekLabel.textContent = 'Week:';
-    const weekSelect = document.createElement('select'); weekSelect.id = 'attendance-week-select';
-    for (let w = 1; w <= WEEKS; w++) { weekSelect.add(new Option(`Week ${w}`, w)); }
 
     const dayLabel = document.createElement('label'); dayLabel.htmlFor = 'attendance-day-select'; dayLabel.textContent = 'Day:';
     const daySelect = document.createElement('select'); daySelect.id = 'attendance-day-select';
@@ -473,24 +449,26 @@ function showAttendanceForm() {
     const dateLabel = document.createElement('label'); dateLabel.htmlFor = 'attendance-date'; dateLabel.textContent = 'Date:';
     const dateInput = document.createElement('input'); dateInput.type = 'date'; dateInput.id = 'attendance-date';
 
-    const weekWrapper = document.createElement('div'); weekWrapper.append(weekLabel, weekSelect);
     const dayWrapper = document.createElement('div'); dayWrapper.append(dayLabel, daySelect);
     const dateWrapper = document.createElement('div'); dateWrapper.append(dateLabel, dateInput);
-    selectorsDiv.append(weekWrapper, dayWrapper, dateWrapper);
+    selectorsDiv.append(dayWrapper, dateWrapper);
 
     const renderSubjects = () => {
         const todayDiv = document.getElementById('today-classes');
         if (!todayDiv) return;
         todayDiv.innerHTML = '';
-        const week = weekSelect.value;
         const day = daySelect.value;
         todayDiv.innerHTML = `<h3>${day}</h3>`;
 
-        const subjectNames = timetable[week]?.[day] || [];
+        const subjectNames = timetable[day] || [];
         const uniqueSubjectNames = [...new Set(subjectNames)];
-        const existingEntry = attendance.find(entry => entry.week == week && entry.day === day);
-        noteInput.value = existingEntry?.note || '';
-
+        // Find existing entry based on date if available, otherwise day
+        const dateVal = dateInput.value;
+        let existingEntry = attendance.find(entry => entry.date === dateVal && dateVal);
+        if (!existingEntry) {
+            existingEntry = attendance.find(entry => entry.day === day && !entry.date); // Fallback to day if no date match
+        }
+        
         if (!uniqueSubjectNames.length) {
             todayDiv.innerHTML = '<p class="empty-state-message">No classes scheduled for this day.</p>';
         } else {
@@ -508,7 +486,6 @@ function showAttendanceForm() {
         }
     };
 
-    weekSelect.addEventListener('change', renderSubjects);
     daySelect.addEventListener('change', renderSubjects);
     dateInput.addEventListener('change', (e) => {
         const date = e.target.value; if (!date) return;
@@ -516,10 +493,8 @@ function showAttendanceForm() {
             const [year, month, dayOfMonth] = date.split('-');
             const localDate = new Date(year, month - 1, dayOfMonth);
             const dayName = DAYS_OF_WEEK[localDate.getDay()];
-            const calculatedWeek = Math.min(Math.ceil(dayOfMonth / 7), WEEKS);
-            weekSelect.value = calculatedWeek;
             daySelect.value = dayName;
-            renderSubjects();
+            renderSubjects(); // Re-render subjects which will now use the date to find records
         } catch (dateError) {
             console.error("Error processing date input:", dateError);
         }
@@ -527,9 +502,6 @@ function showAttendanceForm() {
 
     const today = new Date();
     const dayName = DAYS_OF_WEEK[today.getDay()];
-    const dayOfMonth = today.getDate();
-    const calculatedWeek = Math.min(Math.ceil(dayOfMonth / 7), WEEKS);
-    weekSelect.value = calculatedWeek;
     daySelect.value = dayName;
     dateInput.valueAsDate = today;
 
@@ -540,34 +512,44 @@ function submitAttendance(e) {
     e.preventDefault();
     if (!currentMonthName) { showNotification('Please start a new month first.', 'info'); return; }
 
-    const week = parseInt(document.getElementById('attendance-week-select')?.value);
     const day = document.getElementById('attendance-day-select')?.value;
     const date = document.getElementById('attendance-date')?.value;
-    const note = document.getElementById('attendance-note')?.value.trim();
-    // Safety check for week/day selectors
-    if (isNaN(week) || !day) {
-        showNotification('Error: Could not read week/day selection.', 'error');
+    
+    // Safety check for day selector
+    if (!day) {
+        showNotification('Error: Could not read day selection.', 'error');
+        return;
+    }
+    if (!date) {
+        showNotification('Please select a date.', 'error');
         return;
     }
 
-    const subjectsFromTimetable = timetable[week]?.[day] || [];
+    const subjectsFromTimetable = timetable[day] || [];
     const attendedNames = Array.from(document.querySelectorAll('#today-classes input[name="subject"]:checked')).map(cb => cb.value);
 
     const newSubjectsData = subjectsFromTimetable.map(name => ({ name, attended: attendedNames.includes(name) })).filter(s => s.name && subjectsMaster[s.name]); // Ensure subject still exists
 
-    if (newSubjectsData.length === 0 && !note) {
-         showNotification('No subjects marked or note added for this day.', 'info', null, 'Nothing to Save');
+    // Use DATE as the unique key
+    const existingEntryIndex = attendance.findIndex(entry => entry.date === date);
+
+    if (newSubjectsData.length === 0) {
+         showNotification('No subjects marked for this day.', 'info', null, 'Nothing to Save');
+         // Check if an entry exists, and if so, remove it
+         if (existingEntryIndex > -1) {
+             attendance.splice(existingEntryIndex, 1);
+             saveToLocal();
+             showResults();
+             showNotification('Attendance for this day cleared.', 'success');
+         }
          return;
     }
 
-    const existingEntryIndex = attendance.findIndex(entry => entry.week === week && entry.day === day);
-
     if (existingEntryIndex > -1) {
         attendance[existingEntryIndex].subjects = newSubjectsData;
-        attendance[existingEntryIndex].note = note;
-        if (date) attendance[existingEntryIndex].date = date;
+        attendance[existingEntryIndex].day = day; // Ensure day is updated if date was changed
     } else {
-        attendance.push({ week, day, date, month: currentMonthName, subjects: newSubjectsData, note: note });
+        attendance.push({ day, date, month: currentMonthName, subjects: newSubjectsData });
     }
     saveToLocal();
     showResults();
@@ -591,15 +573,17 @@ function showAttendanceTable() {
     const container = document.getElementById('attendance-table-container');
     if (!container) return;
     container.innerHTML = '<h3>Current Month Attendance</h3>';
-    let tableHTML = `<table class="attendance-table"><thead><tr><th>Week</th><th>Date</th><th>Day</th><th>Subjects</th><th>Note</th></tr></thead><tbody>`;
+    let tableHTML = `<table class="attendance-table"><thead><tr><th>Date</th><th>Day</th><th>Subjects</th></tr></thead><tbody>`;
+    // Sort by date
     const sortedAttendance = [...attendance].sort((a, b) => {
-        if (a.week !== b.week) return a.week - b.week;
-        return DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
+        if (a.date && b.date) return new Date(a.date) - new Date(b.date);
+        if (a.date) return 1; // Entries with dates first
+        if (b.date) return -1;
+        return DAYS.indexOf(a.day) - DAYS.indexOf(b.day); // Fallback to day sort
     });
 
     sortedAttendance.forEach(entry => {
         tableHTML += `<tr>
-            <td>${entry.week}</td>
             <td>${entry.date || ''}</td>
             <td>${entry.day}</td>
             <td>${entry.subjects?.map(s => {
@@ -608,7 +592,6 @@ function showAttendanceTable() {
                 const cellClass = s.attended ? 'subject-cell-attended' : 'subject-cell-missed';
                 return `<span class="subject-cell ${cellClass}" style="--subject-color: ${subjectMeta.color};"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${s.name}</span>`;
             }).join('') || '<span class="no-subjects-note">No scheduled classes</span>'}</td>
-            <td class="attendance-note-cell">${entry.note || ''}</td>
         </tr>`;
     });
     tableHTML += '</tbody></table>';
@@ -721,6 +704,7 @@ function drawAttendanceChart(labels, data, colors, subjectTotals, overallAverage
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    if (!Chart) { console.warn("Chart.js not loaded, skipping chart render."); return; }
 
     if (attendanceChart) { attendanceChart.destroy(); }
 
@@ -729,12 +713,110 @@ function drawAttendanceChart(labels, data, colors, subjectTotals, overallAverage
     const labelColor = style.getPropertyValue('--text-light').trim() || '#666';
     const titleColor = style.getPropertyValue('--text-dark').trim() || '#222';
     const dangerColor = style.getPropertyValue('--danger-color').trim() || '#ff3b30';
-    const getLuminance = (hex) => { /* ... keep luminance function ... */ }; // Keep luminance calc
+    const goalPercent = parseFloat(localStorage.getItem('attendance_goal')) || 75;
+
+    const getLuminance = (hex) => {
+        try {
+            let c = hex.substring(1); // strip #
+            if (c.length === 3) c = c.split('').map(v => v + v).join('');
+            const rgb = parseInt(c, 16);
+            const r = (rgb >> 16) & 0xff;
+            const g = (rgb >> 8) & 0xff;
+            const b = (rgb >> 0) & 0xff;
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        } catch(e) { return 100; } // Default to light
+    };
 
     attendanceChart = new Chart(ctx, {
         type: 'bar',
-        data: { labels, datasets: [ /* ... datasets from previous version ... */ ] },
-        options: { /* ... options from previous version ... */ }
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Attendance %',
+                data: data,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace(')', ', 0.7)').replace('rgb(', 'rgba(')), // Add some transparency to border
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y', // Horizontal bar chart
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: gridColor },
+                    ticks: { color: labelColor, callback: (value) => value + '%' }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: labelColor, font: { weight: '600' } }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: `Overall Attendance: ${overallAverage.toFixed(2)}%`,
+                    color: titleColor,
+                    font: { size: 16, weight: '700' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.raw.toFixed(2);
+                            const subjName = context.label.trim().split(' ').slice(1).join(' ') || context.label.trim(); // Get name, remove icon
+                            const totals = subjectTotals[subjName];
+                            if (totals) { return `${label}: ${value}% (${totals.attended}/${totals.total})`; }
+                            return `${label}: ${value}%`;
+                        }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'right',
+                    formatter: (value) => value.toFixed(1) + '%',
+                    color: (context) => {
+                        // Use datalabel color based on bar color luminance
+                        const barColor = context.dataset.backgroundColor[context.dataIndex];
+                        return getLuminance(barColor) > 140 ? '#333' : '#f5f5f7';
+                    },
+                    font: { weight: 'bold', size: 10 },
+                    textShadowBlur: 2,
+                    textShadowColor: (context) => {
+                         const barColor = context.dataset.backgroundColor[context.dataIndex];
+                        return getLuminance(barColor) > 140 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+                    }
+                },
+                annotation: { // Add goal line
+                    annotations: {
+                        goalLine: {
+                            type: 'line',
+                            xMin: goalPercent,
+                            xMax: goalPercent,
+                            borderColor: dangerColor,
+                            borderWidth: 2,
+                            borderDash: [6, 6],
+                            label: {
+                                content: `Goal: ${goalPercent}%`,
+                                display: true,
+                                position: 'start',
+                                backgroundColor: 'rgba(0,0,0,0.05)',
+                                color: dangerColor,
+                                font: { weight: 'bold' }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        // Register annotation plugin if it's loaded (Chart.js v3+)
+        // Annotation plugin might need to be explicitly registered if using modular Chart.js
+        // For CDN, it's often included or registered automatically, but if not, this might fail.
+        // We are not loading `chartjs-plugin-annotation` it will just be ignored.
     });
 }
 
@@ -837,9 +919,6 @@ function showNotification(message, type = 'info', callback = null, title = '') {
              break;
      }
      overlay.classList.remove('hidden', 'is-hiding');
-     // Force reflow before adding class to trigger animation (if needed, though opacity handles it)
-     // void box.offsetWidth;
-     // box.classList.add('visible'); // If using transform animation
  }
  function hideNotification() {
      const overlay = document.getElementById('custom-notification-overlay');
@@ -847,9 +926,7 @@ function showNotification(message, type = 'info', callback = null, title = '') {
      if (!overlay || !box) return;
 
      overlay.classList.add('is-hiding'); // Start fade out
-     // box.classList.remove('visible'); // If using transform animation
 
-     // Use transitionend event listener for smoother hiding
      const onTransitionEnd = () => {
          overlay.classList.add('hidden');
          overlay.classList.remove('is-hiding');
@@ -858,7 +935,6 @@ function showNotification(message, type = 'info', callback = null, title = '') {
      };
      overlay.addEventListener('transitionend', onTransitionEnd);
 
-     // Fallback timeout in case transitionend doesn't fire (e.g., if display:none is used)
      setTimeout(() => {
          if (!overlay.classList.contains('hidden')) {
              overlay.classList.add('hidden');
@@ -881,10 +957,8 @@ function showNotification(message, type = 'info', callback = null, title = '') {
          }
          hideNotification(); // Hide after executing
      });
-     // Optional: Close on overlay click
      document.getElementById('custom-notification-overlay')?.addEventListener('click', (e) => {
          if (e.target === e.currentTarget) { // Only if clicking overlay itself
-             // Only hide if it's not a confirm dialog (prevent accidental cancel)
              const confirmBtn = document.getElementById('custom-notification-confirm');
              if (!confirmBtn || confirmBtn.style.display === 'none') {
                  hideNotification();
@@ -894,13 +968,263 @@ function showNotification(message, type = 'info', callback = null, title = '') {
  }
 
 
-function removeAllRecords() { showNotification( 'Delete all records? Cannot be undone.', 'confirm', () => { localStorage.clear(); timetable = {}; attendance = []; monthlyHistory = []; currentMonthName = null; subjectsMaster = {}; location.reload(); }); }
-function deleteDayAttendance() { /* ... keep as is ... */ }
-function toggleModifyForm(show = false, mode = 'add') { /* ... keep as is ... */ }
-function handleModifySubject(e) { /* ... keep as is, uses subjectName now */ }
-function checkNewDate(e) { /* ... keep as is ... */ }
-function exportData() { /* ... keep as is ... */ }
-function importData() { /* ... keep as is ... */ }
+function removeAllRecords() { 
+    showNotification( 'Delete all records? This will clear your timetable, subjects, and all attendance history. Cannot be undone.', 'confirm', () => { 
+        localStorage.clear(); 
+        timetable = {}; 
+        attendance = []; 
+        monthlyHistory = []; 
+        currentMonthName = null; 
+        subjectsMaster = {}; 
+        location.reload(); 
+    }, 'Confirm Delete All'); 
+}
+
+function deleteDayAttendance() {
+    const date = document.getElementById('attendance-date')?.value;
+    if (!date) {
+        showNotification(`Please select a date to delete.`, 'info');
+        return;
+    }
+    const existingEntryIndex = attendance.findIndex(entry => entry.date === date);
+    if (existingEntryIndex === -1) {
+        showNotification(`No attendance recorded for ${date} to delete.`, 'info');
+        return;
+    }
+    showNotification(`Delete all attendance for ${date}?`, 'confirm', () => {
+        attendance.splice(existingEntryIndex, 1);
+        saveToLocal();
+        showResults();
+        showAttendanceForm(); // Refresh form
+        showNotification(`Attendance for ${date} deleted.`, 'success');
+    }, 'Confirm Deletion');
+}
+
+function toggleModifyForm(show = false, mode = 'add') {
+    const form = document.getElementById('modify-subject-form');
+    const title = document.getElementById('modify-form-title');
+    const action = document.getElementById('modify-action');
+    const attendedWrapper = document.getElementById('modify-attended-wrapper');
+    const newDateFields = document.getElementById('new-date-fields');
+    if (!form || !title || !action || !attendedWrapper || !newDateFields) return;
+
+    if (show) {
+        form.classList.remove('hidden');
+        action.value = mode;
+        if (mode === 'add') {
+            title.textContent = 'Add Subject to Date';
+            attendedWrapper.classList.remove('hidden');
+            newDateFields.classList.remove('hidden');
+        } else {
+            title.textContent = 'Remove Subject from Date';
+            attendedWrapper.classList.add('hidden');
+            newDateFields.classList.add('hidden');
+        }
+        // Reset form fields
+        document.getElementById('modify-date').valueAsDate = new Date();
+        document.getElementById('modify-subject').value = '';
+        document.getElementById('modify-attended').checked = false;
+        checkNewDate(); // Auto-fill day
+    } else {
+        form.classList.add('hidden');
+    }
+}
+
+function handleModifySubject(e) {
+    e.preventDefault();
+    const action = document.getElementById('modify-action').value;
+    const date = document.getElementById('modify-date').value;
+    const subjectName = document.getElementById('modify-subject').value.trim();
+    const day = document.getElementById('modify-day').value;
+    const attended = document.getElementById('modify-attended').checked;
+
+    if (!date || !subjectName || !day) {
+        showNotification('Please fill in all fields.', 'error'); return;
+    }
+    if (!subjectsMaster[subjectName]) {
+        showNotification(`Subject "${subjectName}" not found. Please add it to your timetable or check spelling.`, 'error'); return;
+    }
+    if (!currentMonthName) {
+        showNotification('Please start a month before modifying attendance.', 'info'); return;
+    }
+
+    // Find or create the attendance entry for this date
+    let entryIndex = attendance.findIndex(entry => entry.date === date);
+    let entry;
+    if (entryIndex === -1) {
+        // If 'add' and no entry, create one
+        if (action === 'add') {
+             entry = { day, date, month: currentMonthName, subjects: [] };
+             attendance.push(entry);
+             entryIndex = attendance.length - 1;
+        } else {
+            // If 'remove' and no entry, nothing to do
+            showNotification(`No attendance found for ${date} to remove a subject from.`, 'info'); return;
+        }
+    } else {
+        entry = attendance[entryIndex];
+        // Ensure day is updated
+        entry.day = day;
+    }
+
+    const subjectIndex = entry.subjects.findIndex(s => s.name === subjectName);
+
+    if (action === 'add') {
+        const newSubjectData = { name: subjectName, attended: attended };
+        if (subjectIndex > -1) {
+            entry.subjects[subjectIndex] = newSubjectData; // Update existing
+        } else {
+            entry.subjects.push(newSubjectData); // Add new
+        }
+        showNotification(`Subject "${subjectName}" added to ${date}.`, 'success');
+    } else { // action === 'remove'
+        if (subjectIndex > -1) {
+            entry.subjects.splice(subjectIndex, 1);
+            showNotification(`Subject "${subjectName}" removed from ${date}.`, 'success');
+        } else {
+            showNotification(`Subject "${subjectName}" was not found on ${date}.`, 'info'); return;
+        }
+        // If last subject is removed, remove the whole entry
+        if (entry.subjects.length === 0) {
+            attendance.splice(entryIndex, 1);
+        }
+    }
+    
+    saveToLocal();
+    showResults();
+    showAttendanceForm(); // Refresh form
+    toggleModifyForm(false); // Hide form
+}
+
+function checkNewDate(e) {
+    const dateInput = e ? e.target : document.getElementById('modify-date');
+    const dayInput = document.getElementById('modify-day');
+    if (!dateInput.value || !dayInput) return;
+
+    try {
+        const [year, month, dayOfMonth] = dateInput.value.split('-');
+        const localDate = new Date(year, month - 1, dayOfMonth);
+        const dayName = DAYS_OF_WEEK[localDate.getDay()];
+        dayInput.value = dayName;
+    } catch (dateError) {
+        console.error("Error processing date input:", dateError);
+        dayInput.value = '';
+    }
+}
+
+function exportData() {
+    try {
+        const data = {
+            timetable: timetable,
+            subjectsMaster: subjectsMaster,
+            attendance: attendance,
+            monthlyHistory: monthlyHistory,
+            currentMonthName: currentMonthName,
+            attendance_goal: localStorage.getItem('attendance_goal') || '75',
+            theme: localStorage.getItem('theme') || 'light',
+            accent_color: localStorage.getItem('accent_color') || '#007aff'
+        };
+        const jsonString = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().split('T')[0];
+        a.download = `attendance_backup_${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('Data exported successfully!', 'success');
+    } catch (e) {
+        console.error("Error exporting data:", e);
+        showNotification('Failed to export data.', 'error', null, 'Export Error');
+    }
+}
+
+function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.type !== 'application/json') {
+        showNotification('Invalid file type. Please select a .json backup file.', 'error', null, 'Import Error');
+        return;
+    }
+    
+    showNotification('Importing data will overwrite all current settings and records. This cannot be undone.', 'confirm', () => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                
+                // Clear existing data first
+                localStorage.clear();
+                
+                // --- Check for NEW format (from v2, my previous response) ---
+                // This format has objects directly
+                if (data.timetable && typeof data.timetable === 'object' && data.subjectsMaster) {
+                    console.log("Importing new format (v2)...");
+                    timetable = data.timetable || {};
+                    subjectsMaster = data.subjectsMaster || {};
+                    attendance = data.attendance || [];
+                    monthlyHistory = data.monthlyHistory || [];
+                    currentMonthName = data.currentMonthName || null;
+                    
+                    // Save all data
+                    localStorage.setItem('attendance_timetable', JSON.stringify(timetable));
+                    localStorage.setItem('attendance_subjects_master', JSON.stringify(subjectsMaster));
+                    localStorage.setItem('attendance_data', JSON.stringify(attendance));
+                    localStorage.setItem('attendance_monthly_history', JSON.stringify(monthlyHistory));
+                    localStorage.setItem('attendance_current_month', currentMonthName || '');
+                    localStorage.setItem('attendance_goal', data.attendance_goal || '75');
+                    localStorage.setItem('theme', data.theme || 'light');
+                    localStorage.setItem('accent_color', data.accent_color || '#007aff');
+
+                // --- Check for OLD format (from v1, the user's `attendance_backup.json`) ---
+                // This format has stringified JSON inside
+                } else if (data.timetable && typeof data.timetable === 'string' && data.attendance_data) {
+                    console.log("Importing old format (v1)...");
+                    // Load stringified JSON into global vars
+                    timetable = JSON.parse(data.timetable || '{}');
+                    attendance = JSON.parse(data.attendance_data || '[]');
+                    monthlyHistory = JSON.parse(data.monthly_history || '[]');
+                    currentMonthName = data.current_month || null;
+                    subjectsMaster = {}; // Will be rebuilt by migration
+                    
+                    // Load other settings if they exist
+                    localStorage.setItem('attendance_goal', data.attendance_goal || '75');
+                    localStorage.setItem('theme', data.theme || 'light');
+                    localStorage.setItem('accent_color', data.accent_color || '#007aff');
+
+                    // *** CRITICAL STEP: Run migration to fix data structures and build subjectsMaster ***
+                    // This function reads from and writes to the global variables
+                    migrateOldData(); 
+                    
+                    // Now save the migrated data from the global variables
+                    saveToLocal(); // This will save the globally modified, migrated data
+
+                } else {
+                    throw new Error('Invalid or unrecognized backup file format.');
+                }
+
+                showNotification('Data imported successfully. The app will now reload.', 'success');
+                setTimeout(() => location.reload(), 1500);
+
+            } catch (err) {
+                console.error("Error importing data:", err);
+                showNotification(`Failed to import data: ${err.message}`, 'error', null, 'Import Error');
+                // If import fails, reload from (now empty) local storage to be safe
+                loadFromLocal();
+            } finally {
+                // Reset file input to allow re-importing same file if needed
+                e.target.value = null;
+            }
+        };
+        reader.readAsText(file);
+    }, 'Confirm Import');
+    
+    // Reset file input in case user cancels confirmation
+    e.target.value = null;
+}
 
 
 // --- Initialization ---
@@ -1024,10 +1348,9 @@ function setupInitialUIState() {
      const projectionsSection = document.getElementById('projections');
      if (!timetableSetup || !projectionsSection) return;
 
-     // Check if timetable has *any* weeks defined with actual subjects
-     const isTimetableSetup = Object.keys(timetable).some(week =>
-        timetable[week] && Object.keys(timetable[week]).length > 0 && Object.values(timetable[week]).some(dayArray => Array.isArray(dayArray) && dayArray.length > 0)
-     );
+     // Check if timetable has *any* days defined with actual subjects
+     const isTimetableSetup = Object.keys(timetable).length > 0 && 
+                              Object.values(timetable).some(dayArray => Array.isArray(dayArray) && dayArray.length > 0);
 
      if (isTimetableSetup) {
          timetableSetup.style.display = 'none';
@@ -1045,8 +1368,6 @@ function setupInitialUIState() {
      } else {
          // Timetable not set up yet
          timetableSetup.style.display = 'block';
-         // Optionally reset master list if timetable is truly empty after load/migration
-         // subjectsMaster = {}; saveToLocal(); createTimetableInputs();
          projectionsSection.style.display = 'none';
      }
 }

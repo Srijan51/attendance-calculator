@@ -22,27 +22,18 @@
         <h1>Attendance Calculator</h1>
 
         <section id="timetable-setup" class="card">
-            <h2>🗓️ Set Your Weekly Timetables & Subjects</h2>
-            <p>Define subjects for each day and week. Assign a color and an optional emoji icon to each unique subject name the first time you enter it.</p>
+            <h2>🗓️ Set Your Weekly Timetable & Subjects</h2>
+            <p>Define subjects for each day. Assign a color and an optional emoji icon to each unique subject name the first time you enter it.</p>
             <form id="timetable-form">
-                <div class="tabs">
-                    <button type="button" class="tab-link active" data-week="1">Week 1</button>
-                    <button type="button" class="tab-link" data-week="2">Week 2</button>
-                    <button type="button" class="tab-link" data-week="3">Week 3</button>
-                    <button type="button" class="tab-link" data-week="4">Week 4</button>
-                </div>
+                
                 <div id="subject-master-list-container" style="margin-bottom: 1.5rem;">
                      <h3>📚 Subject Colors & Icons</h3>
                      <div id="subject-master-list">
                          </div>
                  </div>
-                <div id="days-container-wrapper">
-                    <div id="days-container-1" class="tab-content active"></div>
-                    <div id="days-container-2" class="tab-content"></div>
-                    <div id="days-container-3" class="tab-content"></div>
-                    <div id="days-container-4" class="tab-content"></div>
-                </div>
-                <button type="submit">Save All Timetables & Subjects</button>
+                <div id="days-container">
+                    </div>
+                <button type="submit">Save Timetable & Subjects</button>
             </form>
         </section>
 
@@ -72,15 +63,11 @@
         <section id="attendance-mark" class="card" style="display:none;">
             <h2>✏️ Mark Attendance</h2>
             <form id="attendance-form">
-                <div id="week-day-selectors"></div>
+                <div id="date-day-selectors">
+                    </div>
                 <div id="today-classes"></div>
                 
-                <div class="form-group" style="margin-top: 1.5rem;">
-                    <label for="attendance-note">Note (Optional)</label>
-                    <input type="text" id="attendance-note" placeholder="e.g., Class cancelled, Medical leave...">
-                </div>
-
-                <div class="form-actions-stacked">
+                <div class="form-actions-stacked" style="margin-top: 1.5rem;">
                     <button type="submit">Submit Attendance</button>
                     <button type="button" id="delete-day-btn" class="button-danger">Delete This Day's Attendance</button>
                 </div>
@@ -113,10 +100,6 @@
                     </div>
 
                     <div id="new-date-fields" class="hidden">
-                         <div>
-                            <label for="modify-week">Week (1-4)</label>
-                            <input type="number" id="modify-week" min="1" max="4" value="1">
-                        </div>
                         <div>
                             <label for="modify-day">Day of Week (Auto-detected)</label>
                             <input type="text" id="modify-day" readonly>
@@ -217,7 +200,7 @@
                 <div class="backup-controls">
                     <button id="export-data-btn" type="button" class="button-secondary">Export Data</button>
                     <div class="import-wrapper">
-                        <input type="file" id="import-file-input" accept=".json">
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
                         <button id="import-data-btn" type="button">Import Data</button>
                     </div>
                 </div>

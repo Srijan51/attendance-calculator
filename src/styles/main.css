@@ -239,13 +239,7 @@ button.button-danger { background: var(--danger-color); }
 button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 20px 0 var(--danger-glow); }
 
 
-/* --- Timetable Tabs --- */
-.tabs { display: flex; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); transition: border-color 0.3s ease;}
-.tab-link { padding: 0.75rem 1.25rem; cursor: pointer; background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--text-light); font-weight: 600; font-size: 1rem; transition: color 0.2s ease, border-color 0.2s ease; }
-.tab-link:hover { color: var(--text-dark); }
-.tab-link.active { color: var(--primary-accent); border-bottom-color: var(--primary-accent); }
-.tab-content { display: none; }
-.tab-content.active { display: block; animation: slideInDown 0.3s ease-out; }
+/* --- Timetable --- */
 .day-input-group { margin-bottom: 1rem; display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 0.5rem; }
 .day-input-group label { margin-bottom: 0; }
 .day-input-group input { margin-bottom: 0; }
@@ -262,7 +256,7 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 .subject-color-input::-moz-color-swatch { border: none; border-radius: 50%; }
 .subject-icon-input { width: 80px; font-size: 1.2rem; text-align: center; padding: 0.25rem; margin: 0; flex-shrink: 0; }
 .subject-master-name { font-weight: 600; color: var(--text-dark); flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.3s ease;}
-.delete-subject-btn { background: var(--danger-bg-light); color: var(--danger-text); border: 1px solid var(--danger-border-light); border-radius: 50%; width: 24px; height: 24px; padding: 0; font-size: 1.2rem; line-height: 1; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.delete-subject-btn { background: var(--danger-bg-light); color: var(--danger-text); border: 1px solid var(--danger-border-light); border-radius: 50%; width: 24px; height: 24px; padding: 0; font-size: 1.2rem; line-height: 1; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; display: flex; align-items: center; justify: content: center; }
 .delete-subject-btn:hover { background: var(--danger-color); color: white; }
 
 
@@ -278,7 +272,7 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 #modify-buttons-container { display: flex; gap: 10px; }
 #modify-buttons-container button { flex-grow: 1; background-color: var(--secondary-bg); color: var(--text-dark);}
 #modify-buttons-container button:hover { background-color: var(--secondary-hover); box-shadow: 0 6px 20px 0 var(--secondary-glow); color: #fff;}
-#modify-subject-form { animation: slideInDown 0.4s ease-out; overflow: hidden; }
+#modify-subject-form { animation: slideInDown 0.4s ease-out; overflow: hidden; margin-top: 1.5rem; }
 #new-date-fields { animation: slideInDown 0.4s ease-out; overflow: hidden; }
 .form-actions { display: flex; gap: 10px; margin-top: 1rem; }
 .form-actions button[type="button"] { background: var(--secondary-bg); color: var(--text-dark);}
@@ -292,6 +286,14 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 #new-month-form { display: flex; gap: 10px; }
 #new-month-form input { flex-grow: 1; margin-bottom: 0; }
 #new-month-form button { padding: 0.75rem 1rem; }
+
+/* --- Attendance Marking --- */
+#date-day-selectors { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+#date-day-selectors > div { flex: 1; min-width: 150px; }
+#date-day-selectors label { margin-bottom: 0.25rem; }
+#date-day-selectors select, #date-day-selectors input { margin-bottom: 0; }
+.form-actions-stacked { display: grid; gap: 0.75rem; }
+
 
 /* --- Attendance Table --- */
 .attendance-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
@@ -309,7 +311,6 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 .subject-cell-missed { opacity: 0.6; border-color: color-mix(in srgb, var(--subject-color, var(--danger-text)) 70%, white); }
 .subject-cell-missed::after { content: ' ❌'; }
 .no-subjects-note { font-style: italic; color: var(--text-light); font-size: 0.9em; }
-.attendance-note-cell { font-style: italic; color: var(--text-light); font-size: 0.9em; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 
 /* --- Projections --- */
 .projection-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
@@ -325,6 +326,10 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 #danger-zone h2 { color: var(--danger-color); border-color: rgba(255, 59, 48, 0.2); }
 #danger-zone p { color: var(--text-light); margin-bottom: 1rem; }
 #remove-all { margin: 0; }
+.settings-section { margin-bottom: 2rem; }
+.settings-section:last-child { margin-bottom: 0; }
+.backup-controls { display: flex; gap: 1rem; }
+
 
 /* --- Complete Attendance List (Progress Bars) --- */
 #complete-attendance-list { margin-top: 1.5rem; }
@@ -378,9 +383,7 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 
 @media (max-width: 600px) {
     .backup-controls { flex-direction: column; }
-    #week-day-selectors { flex-direction: column; }
-    #week-day-selectors > div { border-right: none; border-bottom: 1px solid var(--border-color); }
-    #week-day-selectors > div:last-child { border-bottom: none; }
+    #date-day-selectors { flex-direction: column; gap: 0.75rem; }
     #previous-subjects-container .input-group { flex-direction: column; }
     .day-input-group { grid-template-columns: 80px 1fr; }
     .projection-inputs { grid-template-columns: 1fr; }
