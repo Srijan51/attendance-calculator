@@ -8,6 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    
     <script src="scripts/main.js" defer></script>
 </head>
 <body>
@@ -18,15 +22,32 @@
         <h1>Attendance Calculator</h1>
 
         <section id="timetable-setup" class="card">
-            <h2>Set Your Weekly Timetable</h2>
+            <h2>🗓️ Set Your Weekly Timetables & Subjects</h2>
+            <p>Define subjects for each day and week. Assign a color and an optional emoji icon to each unique subject name the first time you enter it.</p>
             <form id="timetable-form">
-                <div id="days-container"></div>
-                <button type="submit">Save Timetable</button>
+                <div class="tabs">
+                    <button type="button" class="tab-link active" data-week="1">Week 1</button>
+                    <button type="button" class="tab-link" data-week="2">Week 2</button>
+                    <button type="button" class="tab-link" data-week="3">Week 3</button>
+                    <button type="button" class="tab-link" data-week="4">Week 4</button>
+                </div>
+                <div id="subject-master-list-container" style="margin-bottom: 1.5rem;">
+                     <h3>📚 Subject Colors & Icons</h3>
+                     <div id="subject-master-list">
+                         </div>
+                 </div>
+                <div id="days-container-wrapper">
+                    <div id="days-container-1" class="tab-content active"></div>
+                    <div id="days-container-2" class="tab-content"></div>
+                    <div id="days-container-3" class="tab-content"></div>
+                    <div id="days-container-4" class="tab-content"></div>
+                </div>
+                <button type="submit">Save All Timetables & Subjects</button>
             </form>
         </section>
 
         <section id="previous-attendance-setup" class="card" style="display:none;">
-            <h2>Import Previous Attendance (Optional)</h2>
+            <h2>📥 Import Previous Attendance (Optional)</h2>
             <p>Enter your exact attendance data from before you started using this calculator. This will be used as the baseline for your "Complete Attendance" percentage.</p>
             <form id="previous-attendance-form">
                 <div id="previous-subjects-container">
@@ -49,10 +70,16 @@
         </div>
 
         <section id="attendance-mark" class="card" style="display:none;">
-            <h2>Mark Attendance</h2>
+            <h2>✏️ Mark Attendance</h2>
             <form id="attendance-form">
                 <div id="week-day-selectors"></div>
                 <div id="today-classes"></div>
+                
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label for="attendance-note">Note (Optional)</label>
+                    <input type="text" id="attendance-note" placeholder="e.g., Class cancelled, Medical leave...">
+                </div>
+
                 <div class="form-actions-stacked">
                     <button type="submit">Submit Attendance</button>
                     <button type="button" id="delete-day-btn" class="button-danger">Delete This Day's Attendance</button>
@@ -74,7 +101,7 @@
                         <input type="date" id="modify-date" required>
                     </div>
                     <div>
-                        <label for="modify-subject">Subject Name</label>
+                        <label for="modify-subject">Subject Name (Must match existing)</label>
                         <input type="text" id="modify-subject" required placeholder="e.g. Physics">
                     </div>
 
@@ -105,20 +132,84 @@
 
         </section>
 
+        <section id="projections" class="card" style="display:none;">
+            <h2>🔮 Attendance Projections</h2>
+            <p>See how future classes will affect your overall percentage. Select a subject and enter the number of classes to project.</p>
+            <form id="projection-form">
+                <div class="projection-inputs">
+                    <div>
+                        <label for="projection-subject">Select Subject</label>
+                        <select id="projection-subject"></select>
+                    </div>
+                    <div>
+                        <label for="projection-classes">Future Classes</label>
+                        <input type="number" id="projection-classes" value="1" min="1">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="project-attend-btn">Attend All</button>
+                    <button type="button" id="project-miss-btn" class="button-danger">Miss All</button>
+                </div>
+            </form>
+            <div id="projection-result" class="hidden"></div>
+        </section>
+
+
         <section id="results" class="card" style="display:none;">
-            <h2>Attendance Results</h2>
+            <h2>📊 Attendance Results</h2>
             <div id="attendance-table-container"></div>
             <div id="all-months-attendance"></div>
 
             <div id="complete-attendance">
-                <h2>Complete Attendance (All Months Till Date)</h2>
+                <h2>📈 Complete Attendance (All Months)</h2>
                 <p>This is the combined percentage including your "Previous Data" and all tracked months.</p>
+                
+                <div id="chart-container">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+                
                 <div id="complete-attendance-list"></div>
             </div>
         </section>
 
         <section id="danger-zone" class="card">
-            <h2>Settings</h2>
+            <h2>⚙️ Settings</h2>
+
+            <div class="settings-section">
+                <h3>Appearance</h3>
+                <div class="theme-options">
+                    <label class="theme-switch-label">
+                        Theme:
+                    </label>
+                     <div class="theme-buttons">
+                        <button type="button" class="theme-button" data-theme="light">Light</button>
+                        <button type="button" class="theme-button" data-theme="dark">Dark</button>
+                        <button type="button" class="theme-button" data-theme="zen">Zen</button>
+                     </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Accent Color</h3>
+                <div class="color-swatch-container" id="color-swatch-container">
+                    <button class="color-swatch" data-color="#007aff" style="background: #007aff;"></button>
+                    <button class="color-swatch" data-color="#34c759" style="background: #34c759;"></button>
+                    <button class="color-swatch" data-color="#ff9500" style="background: #ff9500;"></button>
+                    <button class="color-swatch" data-color="#ff3b30" style="background: #ff3b30;"></button>
+                    <button class="color-swatch" data-color="#af52de" style="background: #af52de;"></button>
+                    <button class="color-swatch" data-color="#5856d6" style="background: #5856d6;"></button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Attendance Goal</h3>
+                <p>Set your minimum attendance percentage goal for the bunker calculator.</p>
+                <div class="goal-setter">
+                    <label for="attendance-goal-input">Goal Percentage</label>
+                    <input type="number" id="attendance-goal-input" min="1" max="100" value="75">
+                    <span>%</span>
+                </div>
+            </div>
 
             <div class="settings-section">
                 <h3>Backup & Restore</h3>
