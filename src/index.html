@@ -26,8 +26,8 @@
         </section>
 
         <section id="previous-attendance-setup" class="card" style="display:none;">
-            <h2>Import Previous Attendance % (Optional)</h2>
-            <p>Enter your existing attendance percentage for each subject. This will be used as a baseline (out of 100 classes) for your "Complete Attendance" calculation.</p>
+            <h2>Import Previous Attendance (Optional)</h2>
+            <p>Enter your exact attendance data from before you started using this calculator. This will be used as the baseline for your "Complete Attendance" percentage.</p>
             <form id="previous-attendance-form">
                 <div id="previous-subjects-container">
                     </div>
@@ -53,19 +53,22 @@
             <form id="attendance-form">
                 <div id="week-day-selectors"></div>
                 <div id="today-classes"></div>
-                <button type="submit">Submit Attendance</button>
+                <div class="form-actions-stacked">
+                    <button type="submit">Submit Attendance</button>
+                    <button type="button" id="delete-day-btn" class="button-danger">Delete This Day's Attendance</button>
+                </div>
             </form>
-            
+
             <div id="subject-modify-controls">
                 <div id="modify-buttons-container">
                     <button id="add-subject-btn-show" type="button">Add Subject for Date</button>
                     <button id="remove-subject-btn-show" type="button">Remove Subject for Date</button>
                 </div>
-                
+
                 <form id="modify-subject-form" class="hidden">
                     <h3 id="modify-form-title"></h3>
                     <input type="hidden" id="modify-action" value="">
-                    
+
                     <div>
                         <label for="modify-date">Date</label>
                         <input type="date" id="modify-date" required>
@@ -74,14 +77,14 @@
                         <label for="modify-subject">Subject Name</label>
                         <input type="text" id="modify-subject" required placeholder="e.g. Physics">
                     </div>
-                    
+
                     <div id="modify-attended-wrapper" class="hidden">
                         <label class="checkbox-label">
                             <input type="checkbox" id="modify-attended">
                             <span>Did you attend this class?</span>
                         </label>
                     </div>
-                    
+
                     <div id="new-date-fields" class="hidden">
                          <div>
                             <label for="modify-week">Week (1-4)</label>
@@ -106,16 +109,34 @@
             <h2>Attendance Results</h2>
             <div id="attendance-table-container"></div>
             <div id="all-months-attendance"></div>
+
             <div id="complete-attendance">
                 <h2>Complete Attendance (All Months Till Date)</h2>
-                <div id="complete-attendance-table"></div>
+                <p>This is the combined percentage including your "Previous Data" and all tracked months.</p>
+                <div id="complete-attendance-list"></div>
             </div>
         </section>
 
         <section id="danger-zone" class="card">
             <h2>Settings</h2>
-            <p>Permanently delete all stored attendance data. This action cannot be undone.</p>
-            <button id="remove-all">Remove All Records</button>
+
+            <div class="settings-section">
+                <h3>Backup & Restore</h3>
+                <p>Save all your data to a file, or restore it from a backup. Importing will overwrite all current data.</p>
+                <div class="backup-controls">
+                    <button id="export-data-btn" type="button" class="button-secondary">Export Data</button>
+                    <div class="import-wrapper">
+                        <input type="file" id="import-file-input" accept=".json">
+                        <button id="import-data-btn" type="button">Import Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Reset Application</h3>
+                <p>Permanently delete all stored attendance data. This action cannot be undone.</p>
+                <button id="remove-all" class="button-danger">Remove All Records</button>
+            </div>
         </section>
 
     </div>

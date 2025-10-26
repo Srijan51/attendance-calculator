@@ -117,8 +117,7 @@ body {
 
 /* Staggered load animation */
 #timetable-setup { animation-delay: 0.1s; }
-/* NEW: Added delay for new card */
-#previous-attendance-setup { animation-delay: 0.15s; }
+#previous-attendance-setup { animation-delay: 0.15s; } /* Re-added delay */
 #month-controls { animation-delay: 0.2s; }
 #attendance-mark { animation-delay: 0.3s; }
 #results { animation-delay: 0.4s; }
@@ -258,6 +257,23 @@ button:hover, input[type="submit"]:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 20px 0 var(--primary-glow), 0 0 15px 0 var(--primary-glow);
 }
+
+/* NEW: Button variants */
+button.button-secondary {
+    background: var(--secondary-bg);
+}
+button.button-secondary:hover {
+    background: var(--secondary-hover);
+    box-shadow: 0 6px 20px 0 var(--secondary-glow);
+}
+button.button-danger {
+    background: var(--danger-color);
+}
+button.button-danger:hover {
+    background: var(--danger-hover);
+    box-shadow: 0 6px 20px 0 var(--danger-glow);
+}
+
 
 /* --- Subject Modify Controls --- */
 #subject-modify-controls {
@@ -402,14 +418,9 @@ button:hover, input[type="submit"]:hover {
     margin-bottom: 1rem;
 }
 #remove-all {
-    background: var(--danger-color);
+    /* Styles are now in button.button-danger */
+    margin: 0;
 }
-/* STYLISH: Danger glow */
-#remove-all:hover {
-    background: var(--danger-hover);
-    box-shadow: 0 6px 20px 0 var(--danger-glow);
-}
-
 
 /* --- Responsive --- */
 @media (max-width: 600px) {
@@ -553,44 +564,145 @@ button:hover, input[type="submit"]:hover {
 
 
 /* --- START NEW STYLES --- */
-/* --- Previous Attendance Setup --- */
+/* --- Previous Attendance Setup (Re-added) --- */
 #previous-subjects-container .previous-subject-entry {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
-    padding: 1rem 1.5rem;
-    margin-bottom: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
     animation: slideInDown 0.4s ease-out;
+}
+#previous-subjects-container .previous-subject-entry h3 {
+    margin-top: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+#previous-subjects-container .input-group {
+    display: flex;
+    gap: 1rem;
+}
+#previous-subjects-container .input-group > div {
+    flex: 1; /* Both inputs take equal space */
+}
+#previous-subjects-container .input-group input {
+    margin-bottom: 0;
+}
 
-    /* NEW: Use flex for side-by-side layout */
+
+/* --- Settings & Backup Controls --- */
+.settings-section {
+    border-top: 1px solid rgba(255, 59, 48, 0.2);
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+}
+.settings-section:first-of-type {
+    border-top: none; 
+}
+.settings-section h3 {
+    margin-top: 0;
+    color: var(--danger-color);
+}
+.backup-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.import-wrapper {
+    display: flex;
+    flex-grow: 1;
+    gap: 0.5rem;
+}
+.import-wrapper input[type="file"] {
+    flex-grow: 1;
+    padding: 0;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--border-radius-md);
+    font-size: 0.9rem;
+}
+.import-wrapper input[type="file"]::file-selector-button {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--primary-accent);
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-md) 0 0 var(--border-radius-md);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.import-wrapper input[type="file"]::file-selector-button:hover {
+    background: #006ae0;
+}
+.import-wrapper button {
+    flex-shrink: 0; 
+}
+
+/* --- Attendance Form Selectors --- */
+#week-day-selectors {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+#week-day-selectors label {
+    font-weight: 600;
+    margin-bottom: 0.5rem; /* Add space between label and input */
+}
+#week-day-selectors select,
+#week-day-selectors input {
+    width: 100%;
+    margin-bottom: 0; /* Override default */
+}
+
+/* --- Attendance Form Actions --- */
+.form-actions-stacked {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+.form-actions-stacked button {
+    width: 100%;
+}
+
+
+/* --- Complete Attendance List --- */
+#complete-attendance-list {
+    margin-top: 1.5rem;
+}
+#complete-attendance-list ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+#complete-attendance-list li {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-md);
+    background: rgba(255, 255, 255, 0.2);
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
 }
-
-#previous-subjects-container .previous-subject-entry label {
-    font-weight: 700;
-    margin-bottom: 0; /* Override default */
-    flex-grow: 1; /* Label takes available space */
-}
-
-#previous-subjects-container .previous-subject-entry .input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-shrink: 0; /* Don't let it shrink */
-}
-
-#previous-subjects-container .previous-subject-entry input {
-    width: 100px; /* Fixed width for percentage input */
-    margin-bottom: 0; /* Override default */
-    text-align: right;
-}
-
-#previous-subjects-container .previous-subject-entry .percent-sign {
-    font-size: 1.2rem;
-    font-weight: 700;
+#complete-attendance-list li strong {
     color: var(--text-dark);
+}
+
+
+@media (max-width: 600px) {
+    .backup-controls {
+        flex-direction: column;
+    }
+    /* Stack selectors vertically on small screens */
+    #week-day-selectors {
+        grid-template-columns: 1fr;
+    }
+    #previous-subjects-container .input-group { /* Stack attended/total on mobile */
+        flex-direction: column; 
+    }
 }
 /* --- END NEW STYLES --- */
