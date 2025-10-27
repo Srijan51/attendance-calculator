@@ -20,10 +20,11 @@ const DEFAULT_COLORS = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '
 
 let timetable = {}; // { day: [subjectName, ...] }
 let subjectsMaster = {}; // { subjectName: { color: '#...', icon: '🧪' } }
-let attendance = []; // { day, date, month, subjects: [{ name, attended }] }
+let attendance = []; // { day, date, month, subjects: [{ name, status: 'attended'|'missed'|'cancelled' }] }
 let monthlyHistory = [];
 let currentMonthName = null;
 let attendanceChart = null; // Variable to hold the chart instance
+let calendarView = new Date(); // State for the calendar
 
 // --- Core Data Handling ---
 
@@ -95,7 +96,7 @@ function migrateOldData() {
             });
         }
 
-        // Migrate attendance data (remove week, remove note)
+        // Migrate attendance data (remove week, remove note, add status)
         const migrateEntrySubjects = (entry) => {
              let migrated = false;
              if (entry && entry.hasOwnProperty('week')) { // Check for old week property
@@ -107,19 +108,23 @@ function migrateOldData() {
                 migrated = true;
              }
 
-             if (entry && entry.subjects && entry.subjects.length > 0 && (typeof entry.subjects[0] !== 'object' || !entry.subjects[0]?.hasOwnProperty('attended'))) {
-                console.log("Migrating old attendance subject format...");
-                entry.subjects = entry.subjects.map(subj => {
-                    const name = typeof subj === 'object' ? subj.name : subj;
-                    if (typeof name !== 'string' || !name.trim()) return null; // Skip invalid subject data
-                    const attended = typeof subj === 'object' ? subj.attended : true;
-                    if (!subjectsMaster[name]) addSubjectToMaster(name);
-                    return { name: name, attended: attended };
-                }).filter(Boolean); // Remove null entries from invalid data
-                migrated = true;
-             } else if (entry && entry.subjects) {
-                // Ensure subjects from valid entries are in master list
-                entry.subjects.forEach(subj => { if (subj && subj.name && !subjectsMaster[subj.name]) addSubjectToMaster(subj.name); });
+             if (entry && entry.subjects && entry.subjects.length > 0) {
+                 // *** NEW MIGRATION: from {attended: bool} to {status: string}
+                 if (entry.subjects[0].hasOwnProperty('attended')) {
+                    console.log("Migrating attendance from 'attended' to 'status' format...");
+                    entry.subjects = entry.subjects.map(subj => {
+                        if (subj === null || typeof subj !== 'object') return null; // Skip invalid
+                        const name = subj.name;
+                        if (typeof name !== 'string' || !name.trim()) return null; // Skip invalid subject data
+                        const status = subj.attended ? 'attended' : 'missed'; // Convert bool to string
+                        if (!subjectsMaster[name]) addSubjectToMaster(name);
+                        return { name: name, status: status };
+                    }).filter(Boolean); // Remove null entries
+                    migrated = true;
+                 } else {
+                    // Ensure subjects from valid entries are in master list
+                    entry.subjects.forEach(subj => { if (subj && subj.name && !subjectsMaster[subj.name]) addSubjectToMaster(subj.name); });
+                 }
              }
              return migrated;
         };
@@ -251,7 +256,7 @@ function attachMasterListListeners() {
 // Helper to update UI elements that use subject colors/icons
 function updateUIColors() {
     if (document.getElementById('results')?.style.display === 'block') {
-         showCompleteAttendance(); showAttendanceTable();
+         showCompleteAttendance(); showAttendanceTable(); renderCalendar();
     }
     if (document.getElementById('attendance-mark')?.style.display === 'block') {
          showAttendanceForm();
@@ -285,8 +290,8 @@ function handleDeleteSubject(e) {
             delete subjectsMaster[subjectName];
             DAYS.forEach(day => { if (timetable[day]) { timetable[day] = timetable[day].filter(name => name !== subjectName); } });
             attendance.forEach(entry => { entry.subjects = entry.subjects?.filter(subj => subj.name !== subjectName); });
-            attendance = attendance.filter(entry => entry.subjects?.length > 0); // Removed note check
-            monthlyHistory.forEach(month => { month.attendance?.forEach(entry => { entry.subjects = entry.subjects?.filter(subj => subj.name !== subjectName); }); month.attendance = month.attendance?.filter(entry => entry.subjects?.length > 0); }); // Removed note check
+            attendance = attendance.filter(entry => entry.subjects?.length > 0); 
+            monthlyHistory.forEach(month => { month.attendance?.forEach(entry => { entry.subjects = entry.subjects?.filter(subj => subj.name !== subjectName); }); month.attendance = month.attendance?.filter(entry => entry.subjects?.length > 0); });
             saveToLocal();
             createTimetableInputs(); // Rebuild timetable UI
             updateUIAfterDelete(); // Update other relevant UI parts
@@ -328,11 +333,13 @@ function createPreviousAttendanceInputs() {
         const subjectMeta = subjectsMaster[name] || { icon: '', color: '#cccccc' };
         const div = document.createElement('div');
         div.className = 'previous-subject-entry';
+        // Updated to ask for Attended, Missed, and Cancelled
         div.innerHTML = `
             <h3><span class="subject-icon">${subjectMeta.icon || ''}</span> ${name}</h3>
             <div class="input-group">
                 <div> <label for="prev-attended-${name}">Attended</label> <input type="number" id="prev-attended-${name}" min="0" value="0"> </div>
-                <div> <label for="prev-total-${name}">Total Held</label> <input type="number" id="prev-total-${name}" min="0" value="0"> </div>
+                <div> <label for="prev-missed-${name}">Missed</label> <input type="number" id="prev-missed-${name}" min="0" value="0"> </div>
+                <div> <label for="prev-cancelled-${name}">Cancelled</label> <input type="number" id="prev-cancelled-${name}" min="0" value="0"> </div>
             </div>`;
          div.querySelector('h3').style.borderLeft = `5px solid ${subjectMeta.color}`;
          div.querySelector('h3').style.paddingLeft = '10px';
@@ -349,18 +356,22 @@ function savePreviousAttendance(e) {
 
     for (const name of subjectNames) {
         const attendedInput = document.getElementById(`prev-attended-${name}`);
-        const totalInput = document.getElementById(`prev-total-${name}`);
-        if (!attendedInput || !totalInput) { continue; }
+        const missedInput = document.getElementById(`prev-missed-${name}`);
+        const cancelledInput = document.getElementById(`prev-cancelled-${name}`);
+        if (!attendedInput || !missedInput || !cancelledInput) { continue; }
 
         const attended = parseInt(attendedInput.value) || 0;
-        const total = parseInt(totalInput.value) || 0;
+        const missed = parseInt(missedInput.value) || 0;
+        const cancelled = parseInt(cancelledInput.value) || 0;
 
-        if (attended < 0 || total < 0) { showNotification(`For ${name}, attended/total cannot be negative.`, 'error'); hasErrors = true; break; }
-        if (attended > total) { showNotification(`For ${name}, attended (${attended}) > total (${total}).`, 'error'); hasErrors = true; break; }
+        if (attended < 0 || missed < 0 || cancelled < 0) { 
+            showNotification(`For ${name}, counts cannot be negative.`, 'error'); hasErrors = true; break; 
+        }
 
-        const missed = total - attended;
-        for (let i = 0; i < attended; i++) { previousSubjects.push({ name: name, attended: true }); }
-        for (let i = 0; i < missed; i++) { previousSubjects.push({ name: name, attended: false }); }
+        // Add subjects based on new status
+        for (let i = 0; i < attended; i++) { previousSubjects.push({ name: name, status: 'attended' }); }
+        for (let i = 0; i < missed; i++) { previousSubjects.push({ name: name, status: 'missed' }); }
+        for (let i = 0; i < cancelled; i++) { previousSubjects.push({ name: name, status: 'cancelled' }); }
     }
 
     if (hasErrors) return;
@@ -368,7 +379,7 @@ function savePreviousAttendance(e) {
     monthlyHistory = monthlyHistory.filter(m => m.monthName !== "Previous Data");
 
     if (previousSubjects.length > 0) {
-        const previousEntry = { day: 'N/A', date: 'N/A', month: 'Previous Data', subjects: previousSubjects }; // Removed week and note
+        const previousEntry = { day: 'N/A', date: 'N/A', month: 'Previous Data', subjects: previousSubjects };
         monthlyHistory.push({ monthName: "Previous Data", attendance: [previousEntry] });
     } else if (!monthlyHistory.some(m => m.monthName === "Previous Data")) {
          monthlyHistory.push({ monthName: "Previous Data", attendance: [] });
@@ -462,26 +473,41 @@ function showAttendanceForm() {
 
         const subjectNames = timetable[day] || [];
         const uniqueSubjectNames = [...new Set(subjectNames)];
-        // Find existing entry based on date if available, otherwise day
+        // Find existing entry based on date
         const dateVal = dateInput.value;
-        let existingEntry = attendance.find(entry => entry.date === dateVal && dateVal);
-        if (!existingEntry) {
-            existingEntry = attendance.find(entry => entry.day === day && !entry.date); // Fallback to day if no date match
-        }
+        const existingEntry = attendance.find(entry => entry.date === dateVal && dateVal);
         
         if (!uniqueSubjectNames.length) {
             todayDiv.innerHTML = '<p class="empty-state-message">No classes scheduled for this day.</p>';
         } else {
             uniqueSubjectNames.forEach(name => {
                 const subjectMeta = subjectsMaster[name] || { icon: '', color: '#ccc' };
-                const isChecked = existingEntry?.subjects?.find(s => s.name === name)?.attended || false;
-                const label = document.createElement('label');
-                label.className = 'subject-checkbox-label';
-                label.innerHTML = `<input type="checkbox" name="subject" value="${name}" ${isChecked ? 'checked' : ''}> <span class="subject-icon">${subjectMeta.icon || ''}</span> <span>${name}</span>`;
-                label.style.setProperty('--subject-color', subjectMeta.color);
-                if (isChecked) label.classList.add('checked');
-                label.querySelector('input').addEventListener('change', (e) => label.classList.toggle('checked', e.target.checked));
-                todayDiv.appendChild(label);
+                const existingSubject = existingEntry?.subjects?.find(s => s.name === name);
+                const currentStatus = existingSubject?.status || 'missed'; // Default to 'missed' if no record
+
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'subject-entry';
+                entryDiv.style.borderColor = subjectMeta.color;
+
+                const idBase = `status-${name}-${dateVal}`; // Unique ID for radio group
+                
+                entryDiv.innerHTML = `
+                    <div class="subject-entry-header" style="color: ${subjectMeta.color};">
+                        <span class="subject-icon">${subjectMeta.icon || ''}</span>
+                        <span>${name}</span>
+                    </div>
+                    <div class="subject-status-group">
+                        <input type="radio" id="${idBase}-attended" name="${idBase}" value="attended" ${currentStatus === 'attended' ? 'checked' : ''}>
+                        <label for="${idBase}-attended" class="status-label status-attended">Attended</label>
+                        
+                        <input type="radio" id="${idBase}-missed" name="${idBase}" value="missed" ${currentStatus === 'missed' ? 'checked' : ''}>
+                        <label for="${idBase}-missed" class="status-label status-missed">Missed</label>
+                        
+                        <input type="radio" id="${idBase}-cancelled" name="${idBase}" value="cancelled" ${currentStatus === 'cancelled' ? 'checked' : ''}>
+                        <label for="${idBase}-cancelled" class="status-label status-cancelled">Cancelled</label>
+                    </div>
+                `;
+                todayDiv.appendChild(entryDiv);
             });
         }
     };
@@ -515,39 +541,31 @@ function submitAttendance(e) {
     const day = document.getElementById('attendance-day-select')?.value;
     const date = document.getElementById('attendance-date')?.value;
     
-    // Safety check for day selector
-    if (!day) {
-        showNotification('Error: Could not read day selection.', 'error');
-        return;
-    }
-    if (!date) {
-        showNotification('Please select a date.', 'error');
-        return;
-    }
+    if (!day) { showNotification('Error: Could not read day selection.', 'error'); return; }
+    if (!date) { showNotification('Please select a date.', 'error'); return; }
 
-    const subjectsFromTimetable = timetable[day] || [];
-    const attendedNames = Array.from(document.querySelectorAll('#today-classes input[name="subject"]:checked')).map(cb => cb.value);
+    const subjectsFromTimetable = [...new Set(timetable[day] || [])]; // Unique subjects
+    const newSubjectsData = [];
 
-    const newSubjectsData = subjectsFromTimetable.map(name => ({ name, attended: attendedNames.includes(name) })).filter(s => s.name && subjectsMaster[s.name]); // Ensure subject still exists
+    subjectsFromTimetable.forEach(name => {
+        if (!subjectsMaster[name]) return; // Skip if subject was deleted
+        const idBase = `status-${name}-${date}`;
+        const selectedInput = document.querySelector(`input[name="${idBase}"]:checked`);
+        const status = selectedInput ? selectedInput.value : 'missed'; // Default to missed
+        newSubjectsData.push({ name: name, status: status });
+    });
+
+    if (newSubjectsData.length === 0) {
+         showNotification('No subjects scheduled for this day.', 'info', null, 'Nothing to Save');
+         return;
+    }
 
     // Use DATE as the unique key
     const existingEntryIndex = attendance.findIndex(entry => entry.date === date);
 
-    if (newSubjectsData.length === 0) {
-         showNotification('No subjects marked for this day.', 'info', null, 'Nothing to Save');
-         // Check if an entry exists, and if so, remove it
-         if (existingEntryIndex > -1) {
-             attendance.splice(existingEntryIndex, 1);
-             saveToLocal();
-             showResults();
-             showNotification('Attendance for this day cleared.', 'success');
-         }
-         return;
-    }
-
     if (existingEntryIndex > -1) {
         attendance[existingEntryIndex].subjects = newSubjectsData;
-        attendance[existingEntryIndex].day = day; // Ensure day is updated if date was changed
+        attendance[existingEntryIndex].day = day; // Ensure day is updated
     } else {
         attendance.push({ day, date, month: currentMonthName, subjects: newSubjectsData });
     }
@@ -563,6 +581,7 @@ function showResults() {
     const resultsSection = document.getElementById('results');
     if (!resultsSection) return;
     resultsSection.style.display = 'block';
+    renderCalendar(); // New calendar
     showAttendanceTable();
     showAllMonthsAttendance();
     showCompleteAttendance();
@@ -589,7 +608,13 @@ function showAttendanceTable() {
             <td>${entry.subjects?.map(s => {
                 if (!s || !s.name) return '';
                 const subjectMeta = subjectsMaster[s.name] || { icon: '', color: '#ccc'};
-                const cellClass = s.attended ? 'subject-cell-attended' : 'subject-cell-missed';
+                let cellClass = '';
+                switch (s.status) {
+                    case 'attended': cellClass = 'subject-cell-attended'; break;
+                    case 'missed': cellClass = 'subject-cell-missed'; break;
+                    case 'cancelled': cellClass = 'subject-cell-cancelled'; break;
+                    default: cellClass = 'subject-cell-missed';
+                }
                 return `<span class="subject-cell ${cellClass}" style="--subject-color: ${subjectMeta.color};"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${s.name}</span>`;
             }).join('') || '<span class="no-subjects-note">No scheduled classes</span>'}</td>
         </tr>`;
@@ -617,7 +642,15 @@ function showAllMonthsAttendance() {
     visibleHistory.forEach(monthEntry => {
         container.innerHTML += `<h4>${monthEntry.monthName}</h4>`;
         let subjectTotals = {};
-        monthEntry.attendance?.forEach(entry => { entry.subjects?.forEach(s => { if(s && s.name && subjectsMaster[s.name]){ if (!subjectTotals[s.name]) subjectTotals[s.name] = {attended: 0, total: 0}; subjectTotals[s.name].total += 1; if (s.attended) subjectTotals[s.name].attended += 1; }}); });
+        monthEntry.attendance?.forEach(entry => { 
+            entry.subjects?.forEach(s => { 
+                if(s && s.name && subjectsMaster[s.name] && s.status !== 'cancelled'){ 
+                    if (!subjectTotals[s.name]) subjectTotals[s.name] = {attended: 0, total: 0}; 
+                    subjectTotals[s.name].total += 1; 
+                    if (s.status === 'attended') subjectTotals[s.name].attended += 1; 
+                }
+            }); 
+        });
         container.innerHTML += '<ul>';
         Object.keys(subjectTotals).sort().forEach(name => {
             const {attended, total} = subjectTotals[name];
@@ -687,10 +720,15 @@ function calculateSubjectTotals() {
     let totals = {};
     const processEntry = (entry) => {
         entry?.subjects?.forEach(s => {
-             if (s && s.name && subjectsMaster[s.name]) {
+             // *** UPDATED LOGIC ***
+             // Only count if subject exists and status is NOT cancelled
+             if (s && s.name && subjectsMaster[s.name] && s.status !== 'cancelled') {
                  if (!totals[s.name]) totals[s.name] = {attended: 0, total: 0};
-                 totals[s.name].total += 1;
-                 if (s.attended) totals[s.name].attended += 1;
+                 totals[s.name].total += 1; // It was a class that was held
+                 if (s.status === 'attended') {
+                    totals[s.name].attended += 1; // It was attended
+                 }
+                 // If status is 'missed', only total goes up, attended does not
              }
         });
     };
@@ -813,10 +851,6 @@ function drawAttendanceChart(labels, data, colors, subjectTotals, overallAverage
                 }
             }
         },
-        // Register annotation plugin if it's loaded (Chart.js v3+)
-        // Annotation plugin might need to be explicitly registered if using modular Chart.js
-        // For CDN, it's often included or registered automatically, but if not, this might fail.
-        // We are not loading `chartjs-plugin-annotation` it will just be ignored.
     });
 }
 
@@ -862,6 +896,60 @@ function calculateProjection(attendFuture) {
      resultDiv.innerHTML = `If you <strong>${attendFuture ? 'attend' : 'miss'}</strong> the next ${futureClasses} class${futureClasses !== 1 ? 'es' : ''} of <strong>${subjectName}</strong>, your new % will be <strong>${newPercent.toFixed(2)}%</strong> (${newAttended}/${newTotal}).`;
      resultDiv.className = attendFuture ? 'projection-result success' : 'projection-result error';
      resultDiv.classList.remove('hidden');
+}
+
+// --- NEW Calendar ---
+function renderCalendar() {
+    const grid = document.getElementById('calendar-grid');
+    const monthYearLabel = document.getElementById('calendar-month-year');
+    if (!grid || !monthYearLabel) return;
+
+    grid.innerHTML = '';
+    const year = calendarView.getFullYear();
+    const month = calendarView.getMonth(); // 0-indexed
+    
+    monthYearLabel.textContent = calendarView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const firstDayOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    // Get weekday, adjust Sunday (0) to be 6
+    let startingDay = firstDayOfMonth.getDay() - 1;
+    if (startingDay < 0) startingDay = 6; 
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Add empty cells for padding
+    for (let i = 0; i < startingDay; i++) {
+        grid.innerHTML += '<div class="calendar-day empty"></div>';
+    }
+
+    // Add day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const entry = attendance.find(a => a.date === dateStr);
+        let dayClass = 'calendar-day';
+
+        if (entry && entry.subjects.length > 0) {
+            dayClass += ' has-data';
+            const hasMissed = entry.subjects.some(s => s.status === 'missed');
+            const allCancelled = entry.subjects.every(s => s.status === 'cancelled');
+            
+            if (hasMissed) {
+                dayClass += ' day-bad';
+            } else if (!allCancelled) {
+                dayClass += ' day-good';
+            } else {
+                 dayClass += ' day-mixed'; // All cancelled or no subjects
+            }
+        }
+        
+        if (dateStr === todayStr) {
+            dayClass += ' today';
+        }
+
+        grid.innerHTML += `<div class="${dayClass}">${day}</div>`;
+    }
 }
 
 
@@ -1004,26 +1092,26 @@ function toggleModifyForm(show = false, mode = 'add') {
     const form = document.getElementById('modify-subject-form');
     const title = document.getElementById('modify-form-title');
     const action = document.getElementById('modify-action');
-    const attendedWrapper = document.getElementById('modify-attended-wrapper');
+    const statusWrapper = document.getElementById('modify-status-wrapper');
     const newDateFields = document.getElementById('new-date-fields');
-    if (!form || !title || !action || !attendedWrapper || !newDateFields) return;
+    if (!form || !title || !action || !statusWrapper || !newDateFields) return;
 
     if (show) {
         form.classList.remove('hidden');
         action.value = mode;
         if (mode === 'add') {
             title.textContent = 'Add Subject to Date';
-            attendedWrapper.classList.remove('hidden');
+            statusWrapper.classList.remove('hidden');
             newDateFields.classList.remove('hidden');
         } else {
             title.textContent = 'Remove Subject from Date';
-            attendedWrapper.classList.add('hidden');
+            statusWrapper.classList.add('hidden');
             newDateFields.classList.add('hidden');
         }
         // Reset form fields
         document.getElementById('modify-date').valueAsDate = new Date();
         document.getElementById('modify-subject').value = '';
-        document.getElementById('modify-attended').checked = false;
+        document.getElementById('modify-status-attended').checked = true; // Default to attended
         checkNewDate(); // Auto-fill day
     } else {
         form.classList.add('hidden');
@@ -1036,7 +1124,7 @@ function handleModifySubject(e) {
     const date = document.getElementById('modify-date').value;
     const subjectName = document.getElementById('modify-subject').value.trim();
     const day = document.getElementById('modify-day').value;
-    const attended = document.getElementById('modify-attended').checked;
+    const status = document.querySelector('input[name="modify-status"]:checked')?.value || 'attended';
 
     if (!date || !subjectName || !day) {
         showNotification('Please fill in all fields.', 'error'); return;
@@ -1070,7 +1158,7 @@ function handleModifySubject(e) {
     const subjectIndex = entry.subjects.findIndex(s => s.name === subjectName);
 
     if (action === 'add') {
-        const newSubjectData = { name: subjectName, attended: attended };
+        const newSubjectData = { name: subjectName, status: status };
         if (subjectIndex > -1) {
             entry.subjects[subjectIndex] = newSubjectData; // Update existing
         } else {
@@ -1142,6 +1230,47 @@ function exportData() {
     }
 }
 
+// New CSV Export Function
+function exportReportToCSV() {
+    try {
+        const subjectTotals = calculateSubjectTotals();
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Subject,Attended,Total Held,Percentage\n";
+
+        let grandAttended = 0;
+        let grandTotal = 0;
+
+        const sortedNames = Object.keys(subjectTotals).sort();
+        
+        sortedNames.forEach(name => {
+            const { attended, total } = subjectTotals[name];
+            const percent = total > 0 ? (attended / total * 100).toFixed(2) : '0.00';
+            csvContent += `"${name}",${attended},${total},"${percent}%"\n`;
+            grandAttended += attended;
+            grandTotal += total;
+        });
+
+        // Add Total Row
+        const overallPercent = grandTotal > 0 ? (grandAttended / grandTotal * 100).toFixed(2) : '0.00';
+        csvContent += "\nTotal," + grandAttended + "," + grandTotal + `,"${overallPercent}%"\n`;
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().split('T')[0];
+        a.download = `attendance_report_${date}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+    } catch (e) {
+        console.error("Error exporting CSV report:", e);
+        showNotification('Failed to export report.', 'error', null, 'Export Error');
+    }
+}
+
 function importData(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -1159,52 +1288,42 @@ function importData(e) {
                 // Clear existing data first
                 localStorage.clear();
                 
-                // --- Check for NEW format (from v2, my previous response) ---
-                // This format has objects directly
+                // --- Check for NEW format (v2, v3) ---
                 if (data.timetable && typeof data.timetable === 'object' && data.subjectsMaster) {
-                    console.log("Importing new format (v2)...");
+                    console.log("Importing new format...");
                     timetable = data.timetable || {};
                     subjectsMaster = data.subjectsMaster || {};
                     attendance = data.attendance || [];
                     monthlyHistory = data.monthlyHistory || [];
                     currentMonthName = data.currentMonthName || null;
                     
-                    // Save all data
-                    localStorage.setItem('attendance_timetable', JSON.stringify(timetable));
-                    localStorage.setItem('attendance_subjects_master', JSON.stringify(subjectsMaster));
-                    localStorage.setItem('attendance_data', JSON.stringify(attendance));
-                    localStorage.setItem('attendance_monthly_history', JSON.stringify(monthlyHistory));
-                    localStorage.setItem('attendance_current_month', currentMonthName || '');
                     localStorage.setItem('attendance_goal', data.attendance_goal || '75');
                     localStorage.setItem('theme', data.theme || 'light');
                     localStorage.setItem('accent_color', data.accent_color || '#007aff');
 
-                // --- Check for OLD format (from v1, the user's `attendance_backup.json`) ---
-                // This format has stringified JSON inside
+                // --- Check for OLD format (v1, stringified JSON) ---
                 } else if (data.timetable && typeof data.timetable === 'string' && data.attendance_data) {
                     console.log("Importing old format (v1)...");
-                    // Load stringified JSON into global vars
                     timetable = JSON.parse(data.timetable || '{}');
                     attendance = JSON.parse(data.attendance_data || '[]');
                     monthlyHistory = JSON.parse(data.monthly_history || '[]');
                     currentMonthName = data.current_month || null;
-                    subjectsMaster = {}; // Will be rebuilt by migration
+                    subjectsMaster = {}; // Will be rebuilt
                     
-                    // Load other settings if they exist
                     localStorage.setItem('attendance_goal', data.attendance_goal || '75');
                     localStorage.setItem('theme', data.theme || 'light');
                     localStorage.setItem('accent_color', data.accent_color || '#007aff');
-
-                    // *** CRITICAL STEP: Run migration to fix data structures and build subjectsMaster ***
-                    // This function reads from and writes to the global variables
-                    migrateOldData(); 
-                    
-                    // Now save the migrated data from the global variables
-                    saveToLocal(); // This will save the globally modified, migrated data
-
                 } else {
                     throw new Error('Invalid or unrecognized backup file format.');
                 }
+                
+                // *** CRITICAL STEP: Run migration on WHATEVER was imported ***
+                // This ensures old v2 files (with 'attended:bool') are also migrated
+                // This builds subjectsMaster for v1 files
+                migrateOldData(); 
+                    
+                // Now save the migrated data from the global variables
+                saveToLocal();
 
                 showNotification('Data imported successfully. The app will now reload.', 'success');
                 setTimeout(() => location.reload(), 1500);
@@ -1212,18 +1331,15 @@ function importData(e) {
             } catch (err) {
                 console.error("Error importing data:", err);
                 showNotification(`Failed to import data: ${err.message}`, 'error', null, 'Import Error');
-                // If import fails, reload from (now empty) local storage to be safe
-                loadFromLocal();
+                loadFromLocal(); // Reload from (now empty) local storage
             } finally {
-                // Reset file input to allow re-importing same file if needed
-                e.target.value = null;
+                e.target.value = null; // Reset file input
             }
         };
         reader.readAsText(file);
     }, 'Confirm Import');
     
-    // Reset file input in case user cancels confirmation
-    e.target.value = null;
+    e.target.value = null; // Reset file input
 }
 
 
@@ -1257,6 +1373,7 @@ function attachEventListeners() {
     document.getElementById('remove-all')?.addEventListener('click', removeAllRecords);
     document.getElementById('skip-previous-btn')?.addEventListener('click', skipPreviousAttendance);
     document.getElementById('export-data-btn')?.addEventListener('click', exportData);
+    document.getElementById('export-report-btn')?.addEventListener('click', exportReportToCSV); // New
     document.getElementById('delete-day-btn')?.addEventListener('click', deleteDayAttendance);
     document.getElementById('add-subject-btn-show')?.addEventListener('click', () => toggleModifyForm(true, 'add'));
     document.getElementById('remove-subject-btn-show')?.addEventListener('click', () => toggleModifyForm(true, 'remove'));
@@ -1277,6 +1394,16 @@ function attachEventListeners() {
     document.getElementById('modify-date')?.addEventListener('change', checkNewDate);
     document.getElementById('projection-subject')?.addEventListener('change', () => document.getElementById('projection-result')?.classList.add('hidden'));
     document.getElementById('projection-classes')?.addEventListener('input', () => document.getElementById('projection-result')?.classList.add('hidden'));
+
+    // Calendar Buttons
+    document.getElementById('calendar-prev-month')?.addEventListener('click', () => {
+        calendarView.setMonth(calendarView.getMonth() - 1);
+        renderCalendar();
+    });
+    document.getElementById('calendar-next-month')?.addEventListener('click', () => {
+        calendarView.setMonth(calendarView.getMonth() + 1);
+        renderCalendar();
+    });
 
     // Theme and Accent Listeners
     setupThemeListeners();
@@ -1347,6 +1474,15 @@ function setupInitialUIState() {
      const timetableSetup = document.getElementById('timetable-setup');
      const projectionsSection = document.getElementById('projections');
      if (!timetableSetup || !projectionsSection) return;
+
+     // Set calendar view to current month or saved month
+     if (currentMonthName) {
+         // This is a bit tricky, as month name isn't a date
+         // We'll just default to today's date for the calendar view
+         calendarView = new Date();
+     } else {
+         calendarView = new Date();
+     }
 
      // Check if timetable has *any* days defined with actual subjects
      const isTimetableSetup = Object.keys(timetable).length > 0 && 

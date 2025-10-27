@@ -6,6 +6,9 @@
     --danger-color: #ff3b30;
     --danger-hover: #e02b20;
     --danger-glow: rgba(255, 59, 48, 0.3);
+    --success-color: #34c759;
+    --warning-color: #ff9500;
+    --neutral-color: #8e8e93;
 
     --text-dark: #1d1d1f;
     --text-light: #4a4a4f;
@@ -43,6 +46,9 @@
     --danger-bg-light: rgba(220, 53, 69, 0.1);
     --danger-border-light: rgba(220, 53, 69, 0.15);
     --danger-text: #721c24;
+    --neutral-bg: rgba(142, 142, 147, 0.15);
+    --neutral-border: rgba(142, 142, 147, 0.2);
+    --neutral-text: #3a3a3c;
 
     /* Bunker Colors */
     --bunker-success-text: #1a5928;
@@ -83,6 +89,9 @@
     --danger-bg-light: rgba(220, 53, 69, 0.2);
     --danger-border-light: rgba(220, 53, 69, 0.3);
     --danger-text: #f0a0a6;
+    --neutral-bg: rgba(142, 142, 147, 0.25);
+    --neutral-border: rgba(142, 142, 147, 0.4);
+    --neutral-text: #a0a0a5;
 
     --bunker-success-text: #86d19b;
     --bunker-danger-text: #f0a0a6;
@@ -95,6 +104,9 @@
     --danger-color: #cc0000;
     --danger-hover: #aa0000;
     --danger-glow: rgba(204, 0, 0, 0.2);
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --neutral-color: #6c757d;
 
     --text-dark: #222;
     --text-light: #666;
@@ -129,6 +141,9 @@
     --danger-bg-light: #f8d7da;
     --danger-border-light: #f5c6cb;
     --danger-text: #721c24;
+    --neutral-bg: #f8f9fa;
+    --neutral-border: #dee2e6;
+    --neutral-text: #495057;
 
     --bunker-success-text: #155724;
     --bunker-danger-text: #721c24;
@@ -157,6 +172,7 @@
 [data-theme="zen"] #projections { display: none; } /* Hide projections */
 [data-theme="zen"] .color-swatch-container { display: none; } /* Hide accent color picker */
 [data-theme="zen"] #danger-zone .settings-section:nth-of-type(2) { display: none; } /* Hide accent color section */
+[data-theme="zen"] #attendance-calendar-container { display: none; } /* Hide calendar */
 
 
 /* --- Global Reset & Base --- */
@@ -212,20 +228,82 @@ label { display: block; font-weight: 600; margin-bottom: 0.25rem; color: var(--t
 input[type="text"]:focus, input[type="date"]:focus, input[type="number"]:focus, select:focus { outline: none; background: var(--input-bg-focus); border-color: var(--primary-accent); box-shadow: 0 0 15px 0 var(--primary-glow); }
 input[readonly] { background: var(--input-readonly-bg); cursor: not-allowed; }
 
-/* --- Checkbox Label Base --- */
+/* --- Checkbox Label Base (for modify-attended-wrapper, if needed) --- */
 .checkbox-label { display: flex; align-items: center; gap: 10px; font-weight: 600; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); background: rgba(255, 255, 255, 0.2); margin-bottom: 0.75rem; border: 1px solid transparent; transition: background-color 0.2s ease, border-color 0.2s ease; }
 .checkbox-label:hover { background: rgba(255, 255, 255, 0.4); }
 .checkbox-label input[type="checkbox"] { width: 1.3em; height: 1.3em; accent-color: var(--primary-accent); cursor: pointer; flex-shrink: 0; }
 .checkbox-label span { font-weight: 600; color: var(--text-dark);}
 .checkbox-label:has(input:checked) { background: rgba(0, 122, 255, 0.1); border-color: rgba(0, 122, 255, 0.3); }
 
-/* --- Subject Specific Checkbox --- */
-.subject-checkbox-label { display: flex; align-items: center; gap: 10px; font-weight: 600; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); background: rgba(255, 255, 255, 0.2); margin-bottom: 0.75rem; border: 2px solid transparent; transition: background-color 0.2s ease, border-color 0.2s ease; position: relative; }
-.subject-checkbox-label input[type="checkbox"] { width: 1.3em; height: 1.3em; cursor: pointer; flex-shrink: 0; accent-color: var(--subject-color, var(--primary-accent)); }
-.subject-checkbox-label .subject-icon { font-size: 1.1em; line-height: 1; }
-.subject-checkbox-label span:not(.subject-icon) { flex-grow: 1; color: var(--text-dark); }
-.subject-checkbox-label.checked { background: color-mix(in srgb, var(--subject-color, var(--primary-accent)) 15%, transparent); border-color: color-mix(in srgb, var(--subject-color, var(--primary-accent)) 40%, transparent); }
-.subject-checkbox-label:hover { background: color-mix(in srgb, var(--subject-color, var(--primary-accent)) 25%, transparent); }
+
+/* --- Subject Status Radio Buttons --- */
+.subject-entry {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.subject-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+.subject-entry-header .subject-icon {
+    font-size: 1.2em;
+}
+.subject-status-group {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+}
+.subject-status-group input[type="radio"] {
+    display: none; /* Hide the actual radio button */
+}
+.subject-status-group .status-label {
+    flex: 1;
+    text-align: center;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    background-color: var(--input-readonly-bg);
+    color: var(--text-light);
+}
+/* Attended */
+.subject-status-group .status-attended { border-color: color-mix(in srgb, var(--success-color) 40%, transparent); }
+.subject-status-group .status-attended:hover { background-color: var(--success-bg); }
+.subject-status-group input[value="attended"]:checked + .status-attended {
+    background-color: var(--success-color);
+    color: #fff;
+    border-color: var(--success-color);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+/* Missed */
+.subject-status-group .status-missed { border-color: color-mix(in srgb, var(--danger-color) 40%, transparent); }
+.subject-status-group .status-missed:hover { background-color: var(--danger-bg-light); }
+.subject-status-group input[value="missed"]:checked + .status-missed {
+    background-color: var(--danger-color);
+    color: #fff;
+    border-color: var(--danger-color);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+/* Cancelled */
+.subject-status-group .status-cancelled { border-color: color-mix(in srgb, var(--neutral-color) 40%, transparent); }
+.subject-status-group .status-cancelled:hover { background-color: var(--neutral-bg); }
+.subject-status-group input[value="cancelled"]:checked + .status-cancelled {
+    background-color: var(--neutral-color);
+    color: #fff;
+    border-color: var(--neutral-color);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
 
 
 /* --- Buttons --- */
@@ -256,7 +334,7 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 .subject-color-input::-moz-color-swatch { border: none; border-radius: 50%; }
 .subject-icon-input { width: 80px; font-size: 1.2rem; text-align: center; padding: 0.25rem; margin: 0; flex-shrink: 0; }
 .subject-master-name { font-weight: 600; color: var(--text-dark); flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.3s ease;}
-.delete-subject-btn { background: var(--danger-bg-light); color: var(--danger-text); border: 1px solid var(--danger-border-light); border-radius: 50%; width: 24px; height: 24px; padding: 0; font-size: 1.2rem; line-height: 1; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; display: flex; align-items: center; justify: content: center; }
+.delete-subject-btn { background: var(--danger-bg-light); color: var(--danger-text); border: 1px solid var(--danger-border-light); border-radius: 50%; width: 24px; height: 24px; padding: 0; font-size: 1.2rem; line-height: 1; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .delete-subject-btn:hover { background: var(--danger-color); color: white; }
 
 
@@ -296,6 +374,7 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 
 
 /* --- Attendance Table --- */
+#attendance-table-container { margin-top: 2rem; }
 .attendance-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
 .attendance-table th, .attendance-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); transition: border-color 0.3s ease;}
 .attendance-table th { font-weight: 700; color: var(--text-dark); }
@@ -310,6 +389,8 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 .subject-cell-attended::after { content: ' ✅'; }
 .subject-cell-missed { opacity: 0.6; border-color: color-mix(in srgb, var(--subject-color, var(--danger-text)) 70%, white); }
 .subject-cell-missed::after { content: ' ❌'; }
+.subject-cell-cancelled { opacity: 0.4; border-color: color-mix(in srgb, var(--subject-color, var(--neutral-text)) 70%, white); background-color: var(--neutral-color); }
+.subject-cell-cancelled::after { content: ' 🚫'; }
 .no-subjects-note { font-style: italic; color: var(--text-light); font-size: 0.9em; }
 
 /* --- Projections --- */
@@ -329,6 +410,9 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 .settings-section { margin-bottom: 2rem; }
 .settings-section:last-child { margin-bottom: 0; }
 .backup-controls { display: flex; gap: 1rem; }
+.backup-controls button { flex: 1; }
+.import-wrapper { flex: 1; }
+.import-wrapper button { width: 100%; }
 
 
 /* --- Complete Attendance List (Progress Bars) --- */
@@ -356,6 +440,24 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
 
 /* --- Chart Container --- */
 #chart-container { height: 300px; margin: 2rem 0; position: relative; }
+
+/* --- Calendar --- */
+#attendance-calendar-container { margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; }
+#attendance-calendar-container h3 { margin-top: 0; margin-bottom: 1rem; }
+#calendar-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+#calendar-controls h4 { margin: 0; color: var(--text-dark); }
+#calendar-controls button { padding: 0.25rem 0.75rem; font-size: 1.2rem; background: var(--input-bg); color: var(--text-dark); border: 1px solid var(--border-color); }
+#calendar-controls button:hover { background: var(--input-bg-focus); box-shadow: 0 0 10px var(--secondary-glow); }
+#calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 0.5rem; }
+#calendar-weekdays div { text-align: center; font-weight: 700; font-size: 0.9rem; color: var(--text-light); }
+#calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.calendar-day { display: flex; align-items: center; justify-content: center; height: 40px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 6px; font-weight: 600; color: var(--text-dark); transition: all 0.2s ease; }
+.calendar-day.empty { background: transparent; border: none; }
+.calendar-day.has-data { cursor: default; }
+.calendar-day.day-good { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+.calendar-day.day-bad { background: var(--danger-bg-light); border-color: var(--danger-border-light); color: var(--danger-text); }
+.calendar-day.day-mixed { background: var(--neutral-bg); border-color: var(--neutral-border); color: var(--neutral-text); }
+.calendar-day.today { box-shadow: 0 0 0 2px var(--primary-accent); border-color: var(--primary-accent); }
 
 
 /* --- Theme Selection Buttons --- */
@@ -390,6 +492,10 @@ button.button-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 
     .subject-master-item { flex-wrap: wrap; }
     .subject-master-name { white-space: normal; }
     .theme-options { flex-direction: column; align-items: flex-start; } /* Stack theme options on mobile */
+    .subject-status-group { flex-wrap: wrap; } /* Allow status buttons to wrap */
+    .subject-status-group .status-label { font-size: 0.8rem; }
+    .calendar-day { height: 35px; font-size: 0.9rem; }
+    #calendar-weekdays div { font-size: 0.8rem; }
 }
 /* --- END NEW STYLES --- */
 

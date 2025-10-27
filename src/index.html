@@ -49,6 +49,7 @@
                 </div>
             </form>
         </section>
+        
         <div id="month-controls" class="card" style="display:none;">
             <div class="month-header">
                 <span id="current-month-label"></span>
@@ -65,7 +66,8 @@
             <form id="attendance-form">
                 <div id="date-day-selectors">
                     </div>
-                <div id="today-classes"></div>
+                <div id="today-classes">
+                    </div>
                 
                 <div class="form-actions-stacked" style="margin-top: 1.5rem;">
                     <button type="submit">Submit Attendance</button>
@@ -92,11 +94,18 @@
                         <input type="text" id="modify-subject" required placeholder="e.g. Physics">
                     </div>
 
-                    <div id="modify-attended-wrapper" class="hidden">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="modify-attended">
-                            <span>Did you attend this class?</span>
-                        </label>
+                    <div id="modify-status-wrapper" class="hidden">
+                        <label>Status</label>
+                        <div class="subject-status-group" id="modify-status-group">
+                            <input type="radio" id="modify-status-attended" name="modify-status" value="attended" checked>
+                            <label for="modify-status-attended" class="status-label status-attended">Attended</label>
+                            
+                            <input type="radio" id="modify-status-missed" name="modify-status" value="missed">
+                            <label for="modify-status-missed" class="status-label status-missed">Missed</label>
+                            
+                            <input type="radio" id="modify-status-cancelled" name="modify-status" value="cancelled">
+                            <label for="modify-status-cancelled" class="status-label status-cancelled">Cancelled</label>
+                        </div>
                     </div>
 
                     <div id="new-date-fields" class="hidden">
@@ -140,18 +149,36 @@
 
         <section id="results" class="card" style="display:none;">
             <h2>📊 Attendance Results</h2>
-            <div id="attendance-table-container"></div>
-            <div id="all-months-attendance"></div>
+
+            <div id="attendance-calendar-container">
+                <h3>Attendance Calendar</h3>
+                <div id="calendar-controls">
+                    <button id="calendar-prev-month" type="button" title="Previous Month">&larr;</button>
+                    <h4 id="calendar-month-year"></h4>
+                    <button id="calendar-next-month" type="button" title="Next Month">&rarr;</button>
+                </div>
+                <div id="calendar-weekdays">
+                    <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+                </div>
+                <div id="calendar-grid">
+                    </div>
+            </div>
+
+            <div id="attendance-table-container">
+                </div>
+            <div id="all-months-attendance">
+                </div>
 
             <div id="complete-attendance">
                 <h2>📈 Complete Attendance (All Months)</h2>
-                <p>This is the combined percentage including your "Previous Data" and all tracked months.</p>
+                <p>This is the combined percentage including your "Previous Data" and all tracked months. "Cancelled" classes are not included in this calculation.</p>
                 
                 <div id="chart-container">
                     <canvas id="attendanceChart"></canvas>
                 </div>
                 
-                <div id="complete-attendance-list"></div>
+                <div id="complete-attendance-list">
+                    </div>
             </div>
         </section>
 
@@ -198,11 +225,19 @@
                 <h3>Backup & Restore</h3>
                 <p>Save all your data to a file, or restore it from a backup. Importing will overwrite all current data.</p>
                 <div class="backup-controls">
-                    <button id="export-data-btn" type="button" class="button-secondary">Export Data</button>
+                    <button id="export-data-btn" type="button" class="button-secondary">Export Data (Backup)</button>
                     <div class="import-wrapper">
                         <input type="file" id="import-file-input" accept=".json" style="display: none;">
                         <button id="import-data-btn" type="button">Import Data</button>
                     </div>
+                </div>
+            </div>
+
+            <div classs="settings-section">
+                <h3>Export Report</h3>
+                <p>Download a CSV file of your complete attendance summary for use in Excel or Google Sheets.</p>
+                <div class="backup-controls">
+                     <button id="export-report-btn" type="button" class="button-secondary">Export Report (CSV)</button>
                 </div>
             </div>
 
