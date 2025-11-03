@@ -898,11 +898,28 @@ function calculateProjection(attendFuture) {
      resultDiv.classList.remove('hidden');
 }
 
-// --- NEW Calendar ---
+// --- NEW Helper to get all attendance data ---
+function getAllAttendanceEntries() {
+    let allEntries = [...attendance]; // Start with current month's data
+    monthlyHistory.forEach(month => {
+        if (month.attendance) {
+            allEntries = allEntries.concat(month.attendance);
+        }
+    });
+    // Filter out any entries that don't have a date (like 'Previous Data' placeholder)
+    return allEntries.filter(entry => entry.date && entry.date !== 'N/A');
+}
+
+// --- Calendar ---
 function renderCalendar() {
     const grid = document.getElementById('calendar-grid');
     const monthYearLabel = document.getElementById('calendar-month-year');
     if (!grid || !monthYearLabel) return;
+
+    // *** FIX: Get ALL entries, not just the current 'attendance' array ***
+    const allEntries = getAllAttendanceEntries();
+    // Create a Map for fast lookups
+    const entriesByDate = new Map(allEntries.map(entry => [entry.date, entry]));
 
     grid.innerHTML = '';
     const year = calendarView.getFullYear();
@@ -927,10 +944,13 @@ function renderCalendar() {
     // Add day cells
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const entry = attendance.find(a => a.date === dateStr);
+        
+        // *** FIX: Use the Map to find the entry ***
+        const entry = entriesByDate.get(dateStr); 
+        
         let dayClass = 'calendar-day';
 
-        if (entry && entry.subjects.length > 0) {
+        if (entry && entry.subjects && entry.subjects.length > 0) {
             dayClass += ' has-data';
             const hasMissed = entry.subjects.some(s => s.status === 'missed');
             const allCancelled = entry.subjects.every(s => s.status === 'cancelled');
