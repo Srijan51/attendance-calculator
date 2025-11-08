@@ -471,25 +471,37 @@ function showAttendanceForm() {
         const day = daySelect.value;
         todayDiv.innerHTML = `<h3>${day}</h3>`;
 
-        const subjectNames = timetable[day] || [];
-        const uniqueSubjectNames = [...new Set(subjectNames)];
+        const subjectNames = timetable[day] || []; // Get all subjects, including duplicates
+        
         // Find existing entry based on date
         const dateVal = dateInput.value;
         const existingEntry = attendance.find(entry => entry.date === dateVal && dateVal);
+        const existingSubjectsCopy = existingEntry ? [...existingEntry.subjects] : []; // Mutable copy for matching
         
-        if (!uniqueSubjectNames.length) {
+        if (!subjectNames.length) {
             todayDiv.innerHTML = '<p class="empty-state-message">No classes scheduled for this day.</p>';
         } else {
-            uniqueSubjectNames.forEach(name => {
+            // Iterate over ALL subjects, not unique ones
+            subjectNames.forEach((name, index) => {
                 const subjectMeta = subjectsMaster[name] || { icon: '', color: '#ccc' };
-                const existingSubject = existingEntry?.subjects?.find(s => s.name === name);
+                
+                // Find a matching subject from the copy and remove it to prevent re-matching
+                let existingSubject = null;
+                let existingSubjectIndex = -1;
+                if (existingSubjectsCopy.length > 0) {
+                    existingSubjectIndex = existingSubjectsCopy.findIndex(s => s.name === name);
+                    if (existingSubjectIndex > -1) {
+                        existingSubject = existingSubjectsCopy.splice(existingSubjectIndex, 1)[0]; // Find, remove, and get
+                    }
+                }
                 const currentStatus = existingSubject?.status || 'missed'; // Default to 'missed' if no record
 
                 const entryDiv = document.createElement('div');
                 entryDiv.className = 'subject-entry';
                 entryDiv.style.borderColor = subjectMeta.color;
 
-                const idBase = `status-${name}-${dateVal}`; // Unique ID for radio group
+                // Use the index to create a unique ID
+                const idBase = `status-${name}-${index}-${dateVal}`; 
                 
                 entryDiv.innerHTML = `
                     <div class="subject-entry-header" style="color: ${subjectMeta.color};">
@@ -544,12 +556,16 @@ function submitAttendance(e) {
     if (!day) { showNotification('Error: Could not read day selection.', 'error'); return; }
     if (!date) { showNotification('Please select a date.', 'error'); return; }
 
-    const subjectsFromTimetable = [...new Set(timetable[day] || [])]; // Unique subjects
+    // Get ALL subjects from timetable, including duplicates
+    const subjectsFromTimetable = timetable[day] || [];
     const newSubjectsData = [];
 
-    subjectsFromTimetable.forEach(name => {
+    // Iterate over ALL subjects, using the index
+    subjectsFromTimetable.forEach((name, index) => {
         if (!subjectsMaster[name]) return; // Skip if subject was deleted
-        const idBase = `status-${name}-${date}`;
+        
+        // Use index to find the unique radio button group
+        const idBase = `status-${name}-${index}-${date}`;
         const selectedInput = document.querySelector(`input[name="${idBase}"]:checked`);
         const status = selectedInput ? selectedInput.value : 'missed'; // Default to missed
         newSubjectsData.push({ name: name, status: status });
@@ -1180,14 +1196,16 @@ function handleModifySubject(e) {
     if (action === 'add') {
         const newSubjectData = { name: subjectName, status: status };
         if (subjectIndex > -1) {
-            entry.subjects[subjectIndex] = newSubjectData; // Update existing
+            // It just updates the *first* instance. Let's just push a new one instead.
+            // This is consistent with "adding" a subject.
+            entry.subjects.push(newSubjectData); // Add new
         } else {
             entry.subjects.push(newSubjectData); // Add new
         }
         showNotification(`Subject "${subjectName}" added to ${date}.`, 'success');
     } else { // action === 'remove'
         if (subjectIndex > -1) {
-            entry.subjects.splice(subjectIndex, 1);
+            entry.subjects.splice(subjectIndex, 1); // Removes the *first* matching instance
             showNotification(`Subject "${subjectName}" removed from ${date}.`, 'success');
         } else {
             showNotification(`Subject "${subjectName}" was not found on ${date}.`, 'info'); return;
