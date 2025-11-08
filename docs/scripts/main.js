@@ -597,12 +597,69 @@ function showResults() {
     const resultsSection = document.getElementById('results');
     if (!resultsSection) return;
     resultsSection.style.display = 'block';
+
+    // Set the default date for the new view-by-date input
+    const viewDateInput = document.getElementById('view-date-input');
+    if (viewDateInput && !viewDateInput.value) {
+        viewDateInput.valueAsDate = new Date();
+    }
+    // Hide the results card by default
+    const viewDateResults = document.getElementById('view-date-results');
+    if (viewDateResults) {
+        viewDateResults.style.display = 'none';
+        viewDateResults.innerHTML = '';
+    }
+
     renderCalendar(); // New calendar
     showAttendanceTable();
     showAllMonthsAttendance();
     showCompleteAttendance();
     populateProjectionSubjects(); // Update projection dropdown
 }
+
+// *** NEW FEATURE: Show Attendance for Specific Date ***
+function showAttendanceForDate() {
+    const dateInput = document.getElementById('view-date-input');
+    const resultsDiv = document.getElementById('view-date-results');
+    if (!dateInput || !resultsDiv) return;
+
+    const selectedDate = dateInput.value;
+    if (!selectedDate) {
+        showNotification('Please select a date to view.', 'info');
+        return;
+    }
+
+    const allEntries = getAllAttendanceEntries();
+    const entry = allEntries.find(e => e.date === selectedDate);
+
+    resultsDiv.style.display = 'block'; // Show the results card
+
+    if (!entry || !entry.subjects || entry.subjects.length === 0) {
+        resultsDiv.innerHTML = `<h3>Attendance for ${selectedDate}</h3><div class="empty-state"><p>No attendance recorded for this date.</p></div>`;
+        return;
+    }
+
+    let resultsHTML = `<h3>Attendance for ${selectedDate} (Day: ${entry.day})</h3>`;
+    resultsHTML += '<div class="view-date-subjects-list">';
+
+    resultsHTML += entry.subjects.map(s => {
+        if (!s || !s.name) return '';
+        const subjectMeta = subjectsMaster[s.name] || { icon: '', color: '#ccc'};
+        let cellClass = '';
+        switch (s.status) {
+            case 'attended': cellClass = 'subject-cell-attended'; break;
+            case 'missed': cellClass = 'subject-cell-missed'; break;
+            case 'cancelled': cellClass = 'subject-cell-cancelled'; break;
+            default: cellClass = 'subject-cell-missed';
+        }
+        // Re-use the .subject-cell styling from the table
+        return `<span class="subject-cell ${cellClass}" style="--subject-color: ${subjectMeta.color};"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${s.name}</span>`;
+    }).join('');
+
+    resultsHTML += '</div>';
+    resultsDiv.innerHTML = resultsHTML;
+}
+// *** END NEW FEATURE ***
 
 function showAttendanceTable() {
     const container = document.getElementById('attendance-table-container');
@@ -1196,16 +1253,14 @@ function handleModifySubject(e) {
     if (action === 'add') {
         const newSubjectData = { name: subjectName, status: status };
         if (subjectIndex > -1) {
-            // It just updates the *first* instance. Let's just push a new one instead.
-            // This is consistent with "adding" a subject.
-            entry.subjects.push(newSubjectData); // Add new
+            entry.subjects[subjectIndex] = newSubjectData; // Update existing
         } else {
             entry.subjects.push(newSubjectData); // Add new
         }
         showNotification(`Subject "${subjectName}" added to ${date}.`, 'success');
     } else { // action === 'remove'
         if (subjectIndex > -1) {
-            entry.subjects.splice(subjectIndex, 1); // Removes the *first* matching instance
+            entry.subjects.splice(subjectIndex, 1);
             showNotification(`Subject "${subjectName}" removed from ${date}.`, 'success');
         } else {
             showNotification(`Subject "${subjectName}" was not found on ${date}.`, 'info'); return;
@@ -1418,6 +1473,10 @@ function attachEventListeners() {
     document.getElementById('cancel-modify')?.addEventListener('click', () => toggleModifyForm(false));
     document.getElementById('project-attend-btn')?.addEventListener('click', () => calculateProjection(true));
     document.getElementById('project-miss-btn')?.addEventListener('click', () => calculateProjection(false));
+
+    // *** NEW EVENT LISTENER ***
+    document.getElementById('view-date-btn')?.addEventListener('click', showAttendanceForDate);
+    // *** END NEW LISTENER ***
 
     // Import Button Logic (Handles file input click)
     const importBtn = document.getElementById('import-data-btn');

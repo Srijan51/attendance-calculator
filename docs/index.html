@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Calculator</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#007aff" />
     <link rel="stylesheet" href="styles/main.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +13,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     
     <script src="scripts/main.js" defer></script>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007aff" />
 </head>
 <body>
 
@@ -152,6 +153,16 @@
         <section id="results" class="card" style="display:none;">
             <h2>📊 Attendance Results</h2>
 
+            <div id="view-date-controls" class="card">
+                <h3>View Specific Date</h3>
+                <div class="view-date-form-group">
+                    <label for="view-date-input">Select Date:</label>
+                    <input type="date" id="view-date-input">
+                    <button type="button" id="view-date-btn">View Date</sbutton>
+                </div>
+            </div>
+            <div id="view-date-results" class="card" style="display:none;">
+                </div>
             <div id="attendance-calendar-container">
                 <h3>Attendance Calendar</h3>
                 <div id="calendar-controls">
@@ -264,18 +275,19 @@
             </div>
         </div>
     </div>
+    
     <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then((registration) => {
-          console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        })
-        .catch((error) => {
-          console.log('ServiceWorker registration failed: ', error);
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then((registration) => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch((error) => {
+              console.log('ServiceWorker registration failed: ', error);
+            });
         });
-    });
-    }
+      }
     </script>
     </body>
 </html>
