@@ -471,11 +471,27 @@ function showAttendanceForm() {
         const day = daySelect.value;
         todayDiv.innerHTML = `<h3>${day}</h3>`;
 
-        const subjectNames = timetable[day] || []; // Get all subjects, including duplicates
+        const baseTimetableSubjects = timetable[day] || [];
+        let subjectNames = [...baseTimetableSubjects];
         
         // Find existing entry based on date
         const dateVal = dateInput.value;
         const existingEntry = attendance.find(entry => entry.date === dateVal && dateVal);
+        
+        // Include any manually added extra subjects that aren't in the timetable
+        if (existingEntry && existingEntry.subjects) {
+            const existingSubjectsCopyForExtras = [...existingEntry.subjects];
+            baseTimetableSubjects.forEach(name => {
+                const idx = existingSubjectsCopyForExtras.findIndex(s => s.name === name);
+                if (idx > -1) {
+                    existingSubjectsCopyForExtras.splice(idx, 1);
+                }
+            });
+            existingSubjectsCopyForExtras.forEach(extra => {
+                subjectNames.push(extra.name);
+            });
+        }
+        
         const existingSubjectsCopy = existingEntry ? [...existingEntry.subjects] : []; // Mutable copy for matching
         
         if (!subjectNames.length) {
@@ -556,12 +572,31 @@ function submitAttendance(e) {
     if (!day) { showNotification('Error: Could not read day selection.', 'error'); return; }
     if (!date) { showNotification('Please select a date.', 'error'); return; }
 
-    // Get ALL subjects from timetable, including duplicates
-    const subjectsFromTimetable = timetable[day] || [];
+    const baseTimetableSubjects = timetable[day] || [];
+    let subjectsToProcess = [...baseTimetableSubjects];
+    
+    // Check for manually added extra classes so they don't get overwritten
+    const existingEntryIndexForSubmit = attendance.findIndex(entry => entry.date === date);
+    if (existingEntryIndexForSubmit > -1) {
+        const existingEntry = attendance[existingEntryIndexForSubmit];
+        if (existingEntry && existingEntry.subjects) {
+            const existingSubjectsCopyForExtras = [...existingEntry.subjects];
+            baseTimetableSubjects.forEach(name => {
+                const idx = existingSubjectsCopyForExtras.findIndex(s => s.name === name);
+                if (idx > -1) {
+                    existingSubjectsCopyForExtras.splice(idx, 1);
+                }
+            });
+            existingSubjectsCopyForExtras.forEach(extra => {
+                subjectsToProcess.push(extra.name);
+            });
+        }
+    }
+
     const newSubjectsData = [];
 
     // Iterate over ALL subjects, using the index
-    subjectsFromTimetable.forEach((name, index) => {
+    subjectsToProcess.forEach((name, index) => {
         if (!subjectsMaster[name]) return; // Skip if subject was deleted
         
         // Use index to find the unique radio button group
@@ -1252,11 +1287,7 @@ function handleModifySubject(e) {
 
     if (action === 'add') {
         const newSubjectData = { name: subjectName, status: status };
-        if (subjectIndex > -1) {
-            entry.subjects[subjectIndex] = newSubjectData; // Update existing
-        } else {
-            entry.subjects.push(newSubjectData); // Add new
-        }
+        entry.subjects.push(newSubjectData); // Add new (always push to allow duplicates)
         showNotification(`Subject "${subjectName}" added to ${date}.`, 'success');
     } else { // action === 'remove'
         if (subjectIndex > -1) {
