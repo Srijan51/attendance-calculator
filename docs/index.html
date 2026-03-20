@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script
         src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -27,6 +26,20 @@
     <div class="container">
         <h1>Attendance Calculator</h1>
 
+        <!-- NEW: Profile Manager -->
+        <div id="profile-manager" class="card profile-card" style="display:none;">
+            <div class="profile-header">
+                <h2>🎓 Semester / Profile</h2>
+                <div class="profile-actions">
+                    <select id="profile-select"></select>
+                    <button type="button" id="edit-timetable-btn" class="button-secondary small-action-btn">Edit Setup</button>
+                    <button type="button" id="add-profile-btn" class="button-secondary small-action-btn">New</button>
+                    <button type="button" id="rename-profile-btn" class="button-secondary small-action-btn">Rename</button>
+                    <button type="button" id="delete-profile-btn" class="button-danger small-action-btn">Delete</button>
+                </div>
+            </div>
+        </div>
+
         <section id="timetable-setup" class="card">
             <h2>🗓️ Set Your Weekly Timetable & Subjects</h2>
             <p>Define subjects for each day. Assign a color and an optional emoji icon to each unique subject name the
@@ -40,7 +53,15 @@
                 </div>
                 <div id="days-container">
                 </div>
-                <button type="submit">Save Timetable & Subjects</button>
+
+                <div id="holidays-container" class="holiday-card" style="margin: 1.5rem 0; padding: 1rem; border: 1px dashed var(--border-color); border-radius: var(--border-radius-md);">
+                    <h3>🌴 Holidays & Vacations</h3>
+                    <p style="font-size: 0.9em; margin-bottom: 0.5rem;">Classes falling on these dates will be ignored.</p>
+                    <div id="holidays-list"></div>
+                    <button type="button" id="add-holiday-btn" class="button-secondary" style="margin-top: 0.5rem; width: 100%;">+ Add Holiday</button>
+                </div>
+
+                <button type="submit" style="width: 100%;">Save Timetable & Subjects</button>
             </form>
         </section>
 
@@ -161,6 +182,12 @@
         <section id="results" class="card" style="display:none;">
             <h2>📊 Attendance Results</h2>
 
+            <!-- NEW: Bunk Calculator Dashboard -->
+            <div id="bunk-dashboard" class="bunk-card">
+                <h3>😎 Safe to Bunk (Bunk Manager)</h3>
+                <div id="bunk-stats-grid" class="bunk-grid"></div>
+            </div>
+
             <div id="view-date-controls" class="card">
                 <h3>View Specific Date</h3>
                 <div class="view-date-form-group">
@@ -207,11 +234,64 @@
 
                 <div id="complete-attendance-list">
                 </div>
+                
+                <button type="button" id="share-report-btn" class="button-primary" style="margin-top: 1.5rem; width: 100%; font-size: 1.1rem;">📸 Download & Share Report Card</button>
+            </div>
+        </section>
+
+        <!-- NEW: Smart Insights & Gamification -->
+        <section id="insights-dashboard" class="card" style="display:none; margin-bottom: 1.5rem;">
+            <h2>💡 Smart Insights & Rewards</h2>
+            
+            <div class="insights-streak-container" style="text-align: center; margin-bottom: 1.5rem;">
+                <div class="streak-card" style="display: inline-block; padding: 1rem 2rem; background: var(--bg-white); border-radius: 50px; border: 2px solid var(--primary-accent); box-shadow: 0 4px 15px rgba(0,122,255,0.2);">
+                    <span class="streak-icon" style="font-size: 1.8rem; vertical-align: middle;">🔥</span>
+                    <div class="streak-details" style="display: inline-block; vertical-align: middle; text-align: left; margin-left: 0.5rem;">
+                        <span class="streak-label" style="display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase;">Current Streak</span>
+                        <span class="streak-value" id="current-streak" style="display: block; font-size: 1.5rem; font-weight: 800; color: var(--text-dark);">0 Days</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Top Subject</h4>
+                    <span id="best-subject" style="font-weight: 700; font-size: 1.2rem; color: var(--success-text);">--</span>
+                </div>
+                <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Needs Focus</h4>
+                    <span id="worst-subject" style="font-weight: 700; font-size: 1.2rem; color: var(--danger-color);">--</span>
+                </div>
+                <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Best Day</h4>
+                    <span id="best-day" style="font-weight: 700; font-size: 1.2rem; color: var(--primary-accent);">--</span>
+                </div>
+            </div>
+
+            <div class="badges-container" style="margin-top: 2rem;">
+                <h3>🏆 Your Trophies</h3>
+                <div id="badges-grid" style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                    <p class="empty-state-message" id="no-badges-msg">Keep attending classes to unlock badges!</p>
+                </div>
+            </div>
+
+            <div class="weekly-trend-container" style="margin-top: 2rem;">
+                <h3>📈 Weekly Trend</h3>
+                <canvas id="weekly-trend-chart"></canvas>
             </div>
         </section>
 
         <section id="danger-zone" class="card">
             <h2>⚙️ Settings</h2>
+
+            <div class="settings-section">
+                <h3>🔔 Daily Reminders</h3>
+                <p>Get a daily local notification to remind you to log your attendance. (Keep browser open/backgrounded).</p>
+                <div class="form-group" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem;">
+                    <input type="time" id="reminder-time" class="premium-time-input" value="17:00" style="margin-bottom: 0;">
+                    <button type="button" id="enable-reminders-btn" class="button-secondary">Enable Reminders</button>
+                </div>
+            </div>
 
             <div class="settings-section">
                 <h3>Appearance</h3>
@@ -250,23 +330,22 @@
             </div>
 
             <div class="settings-section">
-                <h3>Backup & Restore</h3>
-                <p>Save all your data to a file, or restore it from a backup. Importing will overwrite all current data.
-                </p>
-                <div class="backup-controls">
-                    <button id="export-data-btn" type="button" class="button-secondary">Export Data (Backup)</button>
-                    <div class="import-wrapper">
+                <h3>💾 Backup & Restore</h3>
+                <p style="font-size: 0.9em; margin-bottom: 1rem;">Export your current profile as a JSON file, or restore from a backup.</p>
+                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" id="export-data-btn" class="button-secondary">Export JSON Backup</button>
+                    <label class="button-secondary" style="margin: 0; cursor: pointer;">
+                        Import JSON Backup
                         <input type="file" id="import-file-input" accept=".json" style="display: none;">
-                        <button id="import-data-btn" type="button">Import Data</button>
-                    </div>
+                    </label>
                 </div>
             </div>
 
-            <div classs="settings-section">
-                <h3>Export Report</h3>
-                <p>Download a CSV file of your complete attendance summary for use in Excel or Google Sheets.</p>
-                <div class="backup-controls">
-                    <button id="export-report-btn" type="button" class="button-secondary">Export Report (CSV)</button>
+            <div class="settings-section">
+                <h3>📊 Export Analytics</h3>
+                <p style="font-size: 0.9em; margin-bottom: 1rem;">Export your statistics to a spreadsheet report.</p>
+                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" id="export-report-btn" class="button-secondary" style="width: 100%;">Export CSV</button>
                 </div>
             </div>
 
@@ -280,7 +359,7 @@
     </div>
 
     <footer class="site-footer">
-        <p>Created by <strong>Srijan</strong></p>
+        <p>Created by <strong style="background: linear-gradient(90deg, #ff007f, #7f00ff, #007fff); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradientText 3s linear infinite;">Srijan</strong></p>
     </footer>
 
     <div id="custom-notification-overlay" class="hidden">
@@ -288,6 +367,7 @@
             <span class="notification-icon"></span>
             <h3 id="custom-notification-title"></h3>
             <p id="custom-notification-message"></p>
+            <input type="text" id="custom-notification-input" class="hidden" autocomplete="off" style="width: 100%; margin-top: 1rem; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); background: var(--input-bg); color: var(--text-dark);">
             <div id="custom-notification-buttons">
                 <button id="custom-notification-ok">OK</button>
                 <button id="custom-notification-confirm" class="confirm">Confirm</button>

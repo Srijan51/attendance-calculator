@@ -157,7 +157,51 @@
     --neutral-text: #495057;
 
     --bunker-success-text: #155724;
+    --bunker-success-text: #155724;
     --bunker-danger-text: #721c24;
+}
+
+/* Premium Time Input Wrapper */
+.premium-time-input {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--input-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.6rem 1rem;
+    font-size: 1.3rem;
+    font-family: inherit;
+    font-weight: 700;
+    color: var(--primary-accent);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.premium-time-input:hover {
+    border-color: var(--primary-accent);
+    box-shadow: 0 4px 12px var(--primary-glow);
+    transform: translateY(-2px);
+}
+
+.premium-time-input:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.premium-time-input::-webkit-calendar-picker-indicator {
+    background-color: var(--input-bg);
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.premium-time-input::-webkit-calendar-picker-indicator:hover {
+    background-color: var(--primary-accent);
+    opacity: 0.8;
 }
 
 /* Zen mode specific overrides */
@@ -247,13 +291,13 @@ html {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: var(--body-bg);
     color: var(--text-dark);
     line-height: 1.6;
     padding: 20px;
     overflow-x: hidden;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 /* --- Keyframe Animations --- */
@@ -277,6 +321,12 @@ body {
     100% {
         transform: translate(0%, -25%) rotate(180deg);
     }
+}
+
+@keyframes gradientText {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
 @keyframes slideInUp {
@@ -327,8 +377,8 @@ body {
 /* --- Card (Glassmorphism) --- */
 .card {
     background: var(--bg-white);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-color);
     box-shadow: 0 8px 32px 0 var(--shadow-color);
     border-radius: var(--border-radius-lg);
@@ -651,22 +701,75 @@ button.button-danger:hover {
     box-shadow: 0 6px 20px 0 var(--danger-glow);
 }
 
+/* --- Profile Manager --- */
+.profile-card {
+    background: rgba(40, 167, 69, 0.05); /* subtle tint */
+    border-color: rgba(40, 167, 69, 0.3);
+}
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.profile-header h2 { margin-bottom: 0; border: none; padding: 0; }
+.profile-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.profile-actions select {
+    margin-bottom: 0;
+    min-width: 150px;
+}
+.small-action-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
 
 /* --- Timetable --- */
-.day-input-group {
+.day-card {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 1.25rem;
     margin-bottom: 1rem;
-    display: grid;
-    grid-template-columns: 100px 1fr;
-    align-items: center;
+    transition: box-shadow 0.2s;
+}
+.day-card:hover {
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+.day-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--primary-accent);
+}
+.class-row {
+    display: flex;
     gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    align-items: center;
 }
-
-.day-input-group label {
-    margin-bottom: 0;
+.class-row input {
+    margin-bottom: 0 !important;
 }
-
-.day-input-group input {
-    margin-bottom: 0;
+.class-name { flex: 2; }
+.class-start, .class-end { flex: 1; min-width: 90px; }
+.remove-class-btn {
+    padding: 0;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.add-class-btn {
+    margin-top: 0.5rem;
+    width: 100%;
 }
 
 /* --- Subject Master List --- */
@@ -1156,7 +1259,10 @@ button.button-danger:hover {
     margin-top: 1.5rem;
 }
 
-#complete-attendance-list ul {}
+#complete-attendance-list ul {
+    list-style: none;
+    padding: 0;
+}
 
 #complete-attendance-list li {
     font-size: 1rem;
@@ -1346,6 +1452,13 @@ button.button-danger:hover {
 .calendar-day.empty {
     background: transparent;
     border: none;
+}
+
+.calendar-day.day-holiday {
+    background-color: rgba(255, 149, 0, 0.15);
+    border-color: var(--warning-color);
+    color: var(--warning-color);
+    font-weight: 700;
 }
 
 .calendar-day.has-data {
@@ -1561,6 +1674,44 @@ button.button-danger:hover {
     .view-date-form-group button {
         width: 100%;
     }
+}
+
+/* --- Bunk Dashboard --- */
+.bunk-card {
+    background: var(--input-bg);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+.bunk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+.bunk-stat {
+    background: var(--bg-white);
+    padding: 0.75rem;
+    border-radius: 6px;
+    border-left: 4px solid #ccc;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+.bunk-stat.stat-safe { background: var(--success-bg); }
+.bunk-stat.stat-danger { background: var(--danger-bg-light); }
+
+.holiday-notice {
+    padding: 1rem;
+    background: rgba(255, 149, 0, 0.1);
+    border-left: 4px solid var(--warning-color);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    color: var(--text-dark);
 }
 
 /* --- END NEW STYLES --- */

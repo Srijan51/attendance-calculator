@@ -18,11 +18,17 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 // Default subject colors
 const DEFAULT_COLORS = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5856d6', '#ff2d55', '#ffcc00'];
 
-let timetable = {}; // { day: [subjectName, ...] }
+let timetable = {}; // { day: [ {name, start, end}, ...] }
 let subjectsMaster = {}; // { subjectName: { color: '#...', icon: '🧪' } }
 let attendance = []; // { day, date, month, subjects: [{ name, status: 'attended'|'missed'|'cancelled' }] }
 let monthlyHistory = [];
 let currentMonthName = null;
+let holidays = []; // { start: date, end: date, name: string }
+
+// NEW: Profiles mapping
+let profiles = {}; // { "Profile Name": { timetable, attendance, monthlyHistory, currentMonthName, holidays } }
+let currentProfileId = null;
+
 let attendanceChart = null; // Variable to hold the chart instance
 let calendarView = new Date(); // State for the calendar
 
@@ -30,12 +36,20 @@ let calendarView = new Date(); // State for the calendar
 
 function saveToLocal() {
     try {
-        localStorage.setItem('attendance_timetable', JSON.stringify(timetable));
+        if (currentProfileId && profiles[currentProfileId]) {
+            profiles[currentProfileId].timetable = timetable;
+            profiles[currentProfileId].attendance = attendance;
+            profiles[currentProfileId].monthlyHistory = monthlyHistory;
+            profiles[currentProfileId].currentMonthName = currentMonthName;
+            profiles[currentProfileId].holidays = holidays || [];
+        }
+        
+        localStorage.setItem('attendance_profiles', JSON.stringify(profiles));
+        localStorage.setItem('attendance_active_profile', currentProfileId || '');
         localStorage.setItem('attendance_subjects_master', JSON.stringify(subjectsMaster)); // Save master list
-        localStorage.setItem('attendance_data', JSON.stringify(attendance));
-        localStorage.setItem('attendance_monthly_history', JSON.stringify(monthlyHistory));
-        localStorage.setItem('attendance_current_month', currentMonthName || '');
-        // Goal & Accent & Theme are saved directly by their event listeners
+        
+        // No longer saving directly to 'attendance_data' except for backward compatibility if needed, but not strictly necessary since migration handles it.
+        // We will just let old localStorage keys lie dormant or users can export/clear them if they want later.
     } catch (e) {
         console.error("Error saving data to localStorage:", e);
         showNotification("Could not save data. Local storage might be full or disabled.", "error", null, "Save Error");
@@ -44,11 +58,48 @@ function saveToLocal() {
 
 function loadFromLocal() {
     try {
-        timetable = JSON.parse(localStorage.getItem('attendance_timetable') || '{}');
+        profiles = JSON.parse(localStorage.getItem('attendance_profiles') || '{}');
+        currentProfileId = localStorage.getItem('attendance_active_profile');
         subjectsMaster = JSON.parse(localStorage.getItem('attendance_subjects_master') || '{}');
-        attendance = JSON.parse(localStorage.getItem('attendance_data') || '[]');
-        monthlyHistory = JSON.parse(localStorage.getItem('attendance_monthly_history') || '[]');
-        currentMonthName = localStorage.getItem('attendance_current_month') || null;
+
+        // MIGRATION OF OLD DATA
+        if (Object.keys(profiles).length === 0) {
+            const oldTimetable = JSON.parse(localStorage.getItem('attendance_timetable') || '{}');
+            const oldAttendance = JSON.parse(localStorage.getItem('attendance_data') || '[]');
+            const oldHistory = JSON.parse(localStorage.getItem('attendance_monthly_history') || '[]');
+            const oldMonth = localStorage.getItem('attendance_current_month');
+
+            if (Object.keys(oldTimetable).length > 0 || oldAttendance.length > 0 || oldHistory.length > 0) {
+                profiles["Semester 1"] = {
+                    timetable: oldTimetable,
+                    attendance: oldAttendance,
+                    monthlyHistory: oldHistory,
+                    currentMonthName: oldMonth,
+                    holidays: []
+                };
+                currentProfileId = "Semester 1";
+                console.log("Migrated older flat data structure to Semester profiles.");
+                // Immediately save the new structure
+                saveToLocal();
+            } else {
+                currentProfileId = "Default Profile";
+                profiles[currentProfileId] = { timetable: {}, attendance: [], monthlyHistory: [], currentMonthName: null, holidays: [] };
+            }
+        }
+
+        if (!currentProfileId || !profiles[currentProfileId]) {
+            currentProfileId = Object.keys(profiles)[0] || "Default Profile";
+            if (!profiles[currentProfileId]) {
+                 profiles[currentProfileId] = { timetable: {}, attendance: [], monthlyHistory: [], currentMonthName: null, holidays: [] };
+            }
+        }
+
+        // Sync active profile to globals
+        timetable = profiles[currentProfileId].timetable || {};
+        attendance = profiles[currentProfileId].attendance || [];
+        monthlyHistory = profiles[currentProfileId].monthlyHistory || [];
+        currentMonthName = profiles[currentProfileId].currentMonthName || null;
+        holidays = profiles[currentProfileId].holidays || [];
 
         // Load goal setting
         const goalInput = document.getElementById('attendance-goal-input');
@@ -56,7 +107,7 @@ function loadFromLocal() {
             goalInput.value = localStorage.getItem('attendance_goal') || '75';
         }
 
-        // --- MIGRATION (Handle older data formats) ---
+        // --- MIGRATION (Handle older data formats like strings to bools) ---
         migrateOldData();
         // --- END MIGRATION ---
 
@@ -166,18 +217,70 @@ function addSubjectToMaster(name) {
 
 function createTimetableInputs() {
     renderSubjectMasterList();
+    renderHolidays();
     const container = document.getElementById(`days-container`);
-    if (!container) return; // Safety check
+    if (!container) return; 
     container.innerHTML = '';
+    
     DAYS.forEach(day => {
         const dayDiv = document.createElement('div');
-        dayDiv.className = 'day-input-group';
-        // Ensure timetable[day] exist before join
-        const subjectsString = (timetable[day] || []).join(', ');
-        dayDiv.innerHTML = `<label for="${day}">${day}:</label>
-                           <input type="text" placeholder="Subjects (comma separated)" id="${day}" value="${subjectsString}">`;
+        dayDiv.className = 'day-card';
+        dayDiv.innerHTML = `<h3>${day}</h3><div class="classes-list" id="classes-${day}"></div>
+                            <button type="button" class="button-secondary add-class-btn" data-day="${day}">+ Add Class</button>`;
         container.appendChild(dayDiv);
+        
+        const classesList = dayDiv.querySelector(`#classes-${day}`);
+        const dayClasses = timetable[day] || [];
+        
+        dayClasses.forEach(cls => {
+             const name = typeof cls === 'object' ? cls.name : cls;
+             const start = typeof cls === 'object' ? (cls.start || '') : '';
+             const end = typeof cls === 'object' ? (cls.end || '') : '';
+             if (name) addClassUI(classesList, name, start, end);
+        });
+        
+        dayDiv.querySelector('.add-class-btn').addEventListener('click', () => {
+             addClassUI(classesList, '', '', '');
+        });
     });
+}
+
+function addClassUI(container, name, start, end) {
+    const row = document.createElement('div');
+    row.className = 'class-row';
+    row.innerHTML = `
+        <input type="text" class="class-name" placeholder="Subject Name" value="${name}" required style="flex:2;">
+        <input type="time" class="class-start" value="${start}" style="display:none;">
+        <input type="time" class="class-end" value="${end}" style="display:none;">
+        <button type="button" class="button-danger remove-class-btn" title="Remove Subject">&times;</button>
+    `;
+    row.querySelector('.remove-class-btn').addEventListener('click', () => {
+        row.remove();
+    });
+    container.appendChild(row);
+}
+
+function renderHolidays() {
+    const list = document.getElementById('holidays-list');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    holidays.forEach(h => {
+        addHolidayUI(list, h.name, h.start, h.end);
+    });
+}
+
+function addHolidayUI(container, name = '', start = '', end = '') {
+    const row = document.createElement('div');
+    row.className = 'class-row'; 
+    row.innerHTML = `
+        <input type="text" class="holiday-name" placeholder="Holiday Name (e.g. Diwali)" value="${name}" required style="flex: 2;">
+        <input type="date" class="holiday-start" value="${start}" required style="flex: 1;">
+        <input type="date" class="holiday-end" value="${end}" required style="flex: 1;">
+        <button type="button" class="button-danger remove-class-btn" title="Remove Holiday">&times;</button>
+    `;
+    row.querySelector('.remove-class-btn').addEventListener('click', () => row.remove());
+    container.appendChild(row);
 }
 
 function renderSubjectMasterList() {
@@ -269,14 +372,36 @@ function saveTimetable(e) {
     const newMasterSubjects = new Set();
 
     DAYS.forEach(day => {
-        const inputEl = document.getElementById(`${day}`);
-        const inputVal = inputEl ? inputEl.value.trim() : '';
-        const subjectNames = inputVal ? inputVal.split(',').map(s => s.trim()).filter(Boolean) : [];
-        timetable[day] = subjectNames;
-        subjectNames.forEach(name => { if(name) { addSubjectToMaster(name); newMasterSubjects.add(name); } });
+        timetable[day] = [];
+        const classesList = document.getElementById(`classes-${day}`);
+        if(classesList) {
+            const rows = classesList.querySelectorAll('.class-row');
+            rows.forEach(row => {
+                const name = row.querySelector('.class-name').value.trim();
+                const start = row.querySelector('.class-start').value;
+                const end = row.querySelector('.class-end').value;
+                if(name) {
+                    timetable[day].push({name, start, end});
+                    addSubjectToMaster(name);
+                    newMasterSubjects.add(name);
+                }
+            });
+        }
+    });
+
+    holidays = [];
+    const hRows = document.querySelectorAll('#holidays-list .class-row');
+    hRows.forEach(row => {
+        const name = row.querySelector('.holiday-name').value.trim();
+        const start = row.querySelector('.holiday-start').value;
+        const end = row.querySelector('.holiday-end').value;
+        if (name && start && end) {
+            holidays.push({name, start, end});
+        }
     });
 
     saveToLocal();
+
     renderSubjectMasterList();
     document.getElementById('timetable-setup').style.display = 'none';
     createPreviousAttendanceInputs();
@@ -312,7 +437,8 @@ function updateUIAfterDelete() {
 
 function getUniqueSubjectNamesFromTimetable() {
     const allSubjectNames = new Set();
-    Object.values(timetable).flat().forEach(name => {
+    Object.values(timetable).flat().forEach(cls => {
+        const name = typeof cls === 'object' ? cls.name : cls;
         if (name) allSubjectNames.add(name);
     });
     return [...allSubjectNames].sort();
@@ -471,14 +597,14 @@ function showAttendanceForm() {
         const day = daySelect.value;
         todayDiv.innerHTML = `<h3>${day}</h3>`;
 
-        const baseTimetableSubjects = timetable[day] || [];
+        const baseTimetableSubjects = (timetable[day] || []).map(cls => typeof cls === 'object' ? cls.name : cls);
         let subjectNames = [...baseTimetableSubjects];
         
-        // Find existing entry based on date
         const dateVal = dateInput.value;
         const existingEntry = attendance.find(entry => entry.date === dateVal && dateVal);
         
-        // Include any manually added extra subjects that aren't in the timetable
+        const isHoliday = holidays.find(h => dateVal >= h.start && dateVal <= h.end);
+        
         if (existingEntry && existingEntry.subjects) {
             const existingSubjectsCopyForExtras = [...existingEntry.subjects];
             baseTimetableSubjects.forEach(name => {
@@ -492,7 +618,12 @@ function showAttendanceForm() {
             });
         }
         
-        const existingSubjectsCopy = existingEntry ? [...existingEntry.subjects] : []; // Mutable copy for matching
+        const existingSubjectsCopy = existingEntry ? [...existingEntry.subjects] : []; 
+        
+        if (isHoliday && !existingEntry) {
+             todayDiv.innerHTML += `<div class="holiday-notice">🌴 <strong>${isHoliday.name}</strong> Holiday! No classes scheduled.</div>`;
+             return;
+        }
         
         if (!subjectNames.length) {
             todayDiv.innerHTML = '<p class="empty-state-message">No classes scheduled for this day.</p>';
@@ -572,7 +703,7 @@ function submitAttendance(e) {
     if (!day) { showNotification('Error: Could not read day selection.', 'error'); return; }
     if (!date) { showNotification('Please select a date.', 'error'); return; }
 
-    const baseTimetableSubjects = timetable[day] || [];
+    const baseTimetableSubjects = (timetable[day] || []).map(cls => typeof cls === 'object' ? cls.name : cls);
     let subjectsToProcess = [...baseTimetableSubjects];
     
     // Check for manually added extra classes so they don't get overwritten
@@ -650,6 +781,8 @@ function showResults() {
     showAllMonthsAttendance();
     showCompleteAttendance();
     populateProjectionSubjects(); // Update projection dropdown
+    renderInsightsDashboard(); 
+    renderBunkManager(); // NEW: Call Bunk Manager render
 }
 
 // *** NEW FEATURE: Show Attendance for Specific Date ***
@@ -791,6 +924,11 @@ function showCompleteAttendance() {
     const goalPercent = parseFloat(localStorage.getItem('attendance_goal')) || 75;
     const goal = goalPercent / 100.0;
     let chartLabels = [], chartData = [], chartColors = [];
+    
+    // Bunk Dashboard
+    const bunkGrid = document.getElementById('bunk-stats-grid');
+    if (bunkGrid) bunkGrid.innerHTML = '';
+    let bunkerWidgets = '';
 
     Object.keys(subjectTotals).sort().forEach(name => {
         const { attended, total } = subjectTotals[name];
@@ -801,13 +939,15 @@ function showCompleteAttendance() {
 
         if (total === 0) { bunkerInfo = '<span class="bunker-info">No classes recorded yet.</span>'; barColorClass = 'bar-neutral'; }
         else if (percentNum >= goalPercent) {
-             const bunksAvailable = (goal > 0) ? Math.floor((attended - (goal * total)) / goal) : Infinity; // Avoid division by zero if goal is 0
+             const bunksAvailable = (goal > 0) ? Math.floor((attended - (goal * total)) / goal) : Infinity; 
              bunkerInfo = `<span class="bunker-info bunks-available">Can miss ${bunksAvailable} class${bunksAvailable !== 1 ? 'es' : ''}.</span>`;
              barColorClass = 'bar-success';
+             bunkerWidgets += `<div class="bunk-stat stat-safe" style="border-left-color: ${subjectMeta.color}"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${name}: <strong>Safe to skip ${bunksAvailable}</strong></div>`;
         } else {
              const classesNeeded = (goal >= 1) ? (total - attended) : Math.ceil(((goal * total) - attended) / (1 - goal));
              bunkerInfo = `<span class="bunker-info bunks-needed">Need ${classesNeeded} class${classesNeeded !== 1 ? 'es' : ''} for ${goalPercent}%.</span>`;
              if (percentNum < 50) barColorClass = 'bar-danger'; else barColorClass = 'bar-warning';
+             bunkerWidgets += `<div class="bunk-stat stat-danger" style="border-left-color: ${subjectMeta.color}"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${name}: <strong>Need to attend ${classesNeeded}</strong></div>`;
         }
 
         listHTML += `<li style="border-left-color: ${subjectMeta.color};">
@@ -821,6 +961,10 @@ function showCompleteAttendance() {
     });
     listHTML += '</ul>';
     listDiv.innerHTML = listHTML;
+    if (bunkGrid) {
+        if (!bunkerWidgets) bunkerWidgets = '<p class="empty-state-message">Track some classes to see personalized Bunk strategies.</p>';
+        bunkGrid.innerHTML = bunkerWidgets;
+    }
     drawAttendanceChart(chartLabels, chartData, chartColors, subjectTotals, overallAverage);
 }
 
@@ -1055,10 +1199,13 @@ function renderCalendar() {
         
         // *** FIX: Use the Map to find the entry ***
         const entry = entriesByDate.get(dateStr); 
+        const isHoliday = holidays.find(h => dateStr >= h.start && dateStr <= h.end);
         
         let dayClass = 'calendar-day';
 
-        if (entry && entry.subjects && entry.subjects.length > 0) {
+        if (isHoliday) {
+            dayClass += ' day-holiday';
+        } else if (entry && entry.subjects && entry.subjects.length > 0) {
             dayClass += ' has-data';
             const hasMissed = entry.subjects.some(s => s.status === 'missed');
             const allCancelled = entry.subjects.every(s => s.status === 'cancelled');
@@ -1182,6 +1329,51 @@ function showNotification(message, type = 'info', callback = null, title = '') {
          }
      });
  }
+
+function showCustomPrompt(title, placeholder = '') {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('custom-notification-overlay');
+        const box = document.getElementById('custom-notification-box');
+        const msgEl = document.getElementById('custom-notification-message');
+        const titleEl = document.getElementById('custom-notification-title');
+        const inputEl = document.getElementById('custom-notification-input');
+        const confirmBtn = document.getElementById('custom-notification-confirm');
+        const cancelBtn = document.getElementById('custom-notification-cancel');
+        const okBtn = document.getElementById('custom-notification-ok');
+        
+        okBtn.style.display = 'none';
+        confirmBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'inline-block';
+        inputEl.classList.remove('hidden');
+        
+        titleEl.textContent = 'Input Required';
+        msgEl.innerHTML = title;
+        inputEl.value = placeholder;
+        
+        box.className = 'prompt';
+        overlay.classList.remove('hidden', 'is-hiding');
+        inputEl.focus();
+
+        const cleanup = () => {
+            overlay.classList.add('hidden');
+            inputEl.classList.add('hidden');
+            confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+            inputEl.replaceWith(inputEl.cloneNode(true));
+        };
+
+        const newConfirmBtn = document.getElementById('custom-notification-confirm');
+        const newCancelBtn = document.getElementById('custom-notification-cancel');
+        const newInputEl = document.getElementById('custom-notification-input');
+
+        newConfirmBtn.addEventListener('click', () => { resolve(newInputEl.value); cleanup(); });
+        newCancelBtn.addEventListener('click', () => { resolve(null); cleanup(); });
+        newInputEl.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') newConfirmBtn.click();
+            if (e.key === 'Escape') newCancelBtn.click();
+        });
+    });
+}
 
 
 function removeAllRecords() { 
@@ -1324,6 +1516,280 @@ function checkNewDate(e) {
     }
 }
 
+// --- Smart Insights & Gamification --- //
+
+function renderBunkManager() {
+    const grid = document.getElementById('bunk-stats-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    if (attendance.length === 0) {
+        grid.innerHTML = '<p class="empty-state-message" style="grid-column: 1/-1;">Log attendance to see bunk stats.</p>';
+        return;
+    }
+
+    const goalPercent = parseFloat(localStorage.getItem('attendance_goal')) || 75;
+    const goal = goalPercent / 100.0;
+    
+    const subjectTotals = calculateSubjectTotals();
+    
+    Object.keys(subjectTotals).forEach(name => {
+        const stats = subjectTotals[name];
+        if (stats.total === 0) return;
+        
+        let safeToBunk = 0;
+        let classesNeeded = 0;
+        let msg = '';
+        let statClass = '';
+        const currentPct = (stats.attended / stats.total) * 100;
+        
+        if (currentPct >= goalPercent) {
+            safeToBunk = Math.floor((stats.attended - goal * stats.total) / goal);
+            if (safeToBunk > 0) {
+                msg = `Safe to bunk <strong>${safeToBunk}</strong> class${safeToBunk > 1 ? 'es' : ''}`;
+                statClass = 'stat-safe';
+            } else {
+                msg = `On track (Cannot bunk)`;
+                statClass = 'stat-safe';
+            }
+        } else {
+            classesNeeded = Math.ceil((goal * stats.total - stats.attended) / (1 - goal));
+            msg = `Need <strong>${classesNeeded}</strong> class${classesNeeded > 1 ? 'es' : ''}`;
+            statClass = 'stat-danger';
+        }
+        
+        const card = document.createElement('div');
+        card.className = `bunk-stat ${statClass}`;
+        card.innerHTML = `<div style="flex:1"><strong>${name}</strong> <span style="display:block; font-size: 0.8rem; color: #666;">${currentPct.toFixed(1)}%</span></div> <div>${msg}</div>`;
+        grid.appendChild(card);
+    });
+}
+
+function renderInsightsDashboard() {
+    const dashboard = document.getElementById('insights-dashboard');
+    if (!dashboard) return;
+
+    let streak = 0;
+    const sortedDates = [...attendance].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    for (let i = 0; i < sortedDates.length; i++) {
+         const entry = sortedDates[i];
+         const hasAttended = entry.subjects.some(s => s.status === 'attended');
+         const hasMissed = entry.subjects.some(s => s.status === 'missed');
+         
+         if (hasAttended && !hasMissed) {
+             streak++;
+         } else if (hasMissed) {
+             break;
+         }
+    }
+    const currentStreakEl = document.getElementById('current-streak');
+    if (currentStreakEl) currentStreakEl.innerText = `${streak} Day${streak !== 1 ? 's' : ''}`;
+
+    let bestSubject = '--', worstSubject = '--';
+    let highestPct = -1, lowestPct = 101;
+    
+    const subjectTotals = {};
+    attendance.forEach(entry => {
+        entry.subjects.forEach(sub => {
+            if (sub.status === 'cancelled') return;
+            if (!subjectTotals[sub.name]) subjectTotals[sub.name] = { attended: 0, total: 0 };
+            subjectTotals[sub.name].total++;
+            if (sub.status === 'attended') subjectTotals[sub.name].attended++;
+        });
+    });
+
+    Object.keys(subjectTotals).forEach(name => {
+        const stats = subjectTotals[name];
+        if (stats.total > 0) {
+            const pct = (stats.attended / stats.total) * 100;
+            if (pct > highestPct) { highestPct = pct; bestSubject = name; }
+            if (pct < lowestPct) { lowestPct = pct; worstSubject = name; }
+        }
+    });
+
+    const bestSubEl = document.getElementById('best-subject');
+    const worstSubEl = document.getElementById('worst-subject');
+    if (bestSubEl) bestSubEl.innerText = highestPct >= 0 ? `${bestSubject} (${Math.round(highestPct)}%)` : '--';
+    if (worstSubEl) worstSubEl.innerText = lowestPct <= 100 ? `${worstSubject} (${Math.round(lowestPct)}%)` : '--';
+
+    const dayTotals = {};
+    attendance.forEach(entry => {
+        if (!dayTotals[entry.day]) dayTotals[entry.day] = { attended: 0, total: 0 };
+        entry.subjects.forEach(sub => {
+             if (sub.status === 'cancelled') return;
+             dayTotals[entry.day].total++;
+             if (sub.status === 'attended') dayTotals[entry.day].attended++;
+        });
+    });
+    
+    let bestDayName = '--', bestDayPct = -1;
+    Object.keys(dayTotals).forEach(day => {
+         const stats = dayTotals[day];
+         if (stats.total > 0) {
+              const pct = (stats.attended / stats.total) * 100;
+              if (pct > bestDayPct) { bestDayPct = pct; bestDayName = day; }
+         }
+    });
+    
+    const bestDayEl = document.getElementById('best-day');
+    if (bestDayEl) bestDayEl.innerText = bestDayPct >= 0 ? `${bestDayName} (${Math.round(bestDayPct)}%)` : '--';
+
+    evaluateBadges(streak, highestPct, Object.keys(subjectTotals).length);
+    renderWeeklyTrendChart();
+}
+
+function evaluateBadges(streak, highestPct, totalSubjects) {
+     const badges = [];
+     if (streak >= 3) badges.push({ icon: '🔥', title: 'On Fire!', desc: '3+ Day Streak' });
+     if (streak >= 7) badges.push({ icon: '😎', title: 'Unstoppable', desc: '7+ Day Streak' });
+     if (highestPct === 100 && totalSubjects > 0) badges.push({ icon: '⭐', title: 'Perfectionist', desc: '100% in a subject' });
+     
+     const totalClasses = attendance.reduce((acc, entry) => acc + entry.subjects.length, 0);
+     if (totalClasses >= 10) badges.push({ icon: '📚', title: 'Committed', desc: 'Tracked 10+ classes' });
+     if (totalClasses >= 50) badges.push({ icon: '🎓', title: 'Veteran', desc: 'Tracked 50+ classes' });
+     
+     const container = document.getElementById('badges-grid');
+     const msg = document.getElementById('no-badges-msg');
+     
+     if (badges.length === 0) {
+         container.innerHTML = `<p class="empty-state-message" id="no-badges-msg">Keep attending classes to unlock badges!</p>`;
+         return;
+     }
+     
+     container.innerHTML = '';
+     badges.forEach(b => {
+          container.innerHTML += `
+               <div class="badge-item" style="text-align: center; padding: 1rem; background: var(--input-bg); border: 2px solid ${b.icon === '⭐' ? 'gold' : 'var(--border-color)'}; border-radius: var(--border-radius-md); width: 130px; box-shadow: 0 4px 6px var(--shadow-color); transition: transform 0.2s;">
+                   <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${b.icon}</div>
+                   <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 0.25rem;">${b.title}</div>
+                   <div style="font-size: 0.75rem; color: var(--text-light); line-height: 1.2;">${b.desc}</div>
+               </div>
+          `;
+     });
+}
+
+function renderWeeklyTrendChart() {
+    const ctx = document.getElementById('weekly-trend-chart');
+    if (!ctx) return;
+    
+    const weeks = {};
+    attendance.forEach(entry => {
+         if(!entry.date) return;
+         const d = new Date(entry.date);
+         
+         const label = `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleString('default', { month: 'short' })}`;
+         
+         if(!weeks[label]) weeks[label] = { attended: 0, total: 0, dateObj: d };
+         
+         entry.subjects.forEach(sub => {
+              if (sub.status !== 'cancelled') {
+                   weeks[label].total++;
+                   if (sub.status === 'attended') weeks[label].attended++;
+              }
+         });
+    });
+
+    const sortedWeeksObj = Object.values(weeks).sort((a,b) => a.dateObj - b.dateObj);
+    const lastWeeks = sortedWeeksObj.slice(-6);
+    
+    const labels = lastWeeks.map(w => {
+         return `W${Math.ceil(w.dateObj.getDate() / 7)} ${w.dateObj.toLocaleString('default', { month: 'short' })}`;
+    });
+    const data = lastWeeks.map(w => w.total > 0 ? (w.attended / w.total * 100).toFixed(1) : 0);
+
+    if (window.weeklyTrendChartInstance) window.weeklyTrendChartInstance.destroy();
+    
+    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-accent').trim() || '#007aff';
+    
+    window.weeklyTrendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Weekly Att %',
+                data: data,
+                borderColor: primaryColor,
+                backgroundColor: primaryColor + '33',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: primaryColor,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { min: 0, max: 100 } },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function toggleReminders() {
+    const time = document.getElementById('reminder-time').value;
+    const btn = document.getElementById('enable-reminders-btn');
+    
+    if (btn.innerText.includes('Enable')) {
+         if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+             Notification.requestPermission();
+         }
+         localStorage.setItem('attendance_reminder_time', time);
+         btn.innerText = 'Disable Reminders';
+         btn.classList.add('button-danger');
+         btn.classList.remove('button-secondary');
+         showNotification(`Reminders securely set for ${time} daily.`, 'success');
+         startReminderLoop();
+    } else {
+         localStorage.removeItem('attendance_reminder_time');
+         btn.innerText = 'Enable Reminders';
+         btn.classList.remove('button-danger');
+         btn.classList.add('button-secondary');
+         if(window.reminderInterval) clearInterval(window.reminderInterval);
+         showNotification('Reminders disabled.', 'info');
+    }
+}
+
+function startReminderLoop() {
+    if(window.reminderInterval) clearInterval(window.reminderInterval);
+    const target = localStorage.getItem('attendance_reminder_time');
+    if (!target) return;
+    
+    const btn = document.getElementById('enable-reminders-btn');
+    if (btn) {
+        btn.innerText = 'Disable Reminders';
+        btn.classList.add('button-danger');
+        btn.classList.remove('button-secondary');
+        document.getElementById('reminder-time').value = target;
+    }
+
+    window.reminderInterval = setInterval(() => {
+        const timeTarget = localStorage.getItem('attendance_reminder_time');
+        if (!timeTarget) return;
+        
+        const now = new Date();
+        const currentHr = now.getHours().toString().padStart(2, '0');
+        const currentMin = now.getMinutes().toString().padStart(2, '0');
+        const currentTime = `${currentHr}:${currentMin}`;
+        
+        const lastNotified = localStorage.getItem('attendance_last_notified');
+        const todayStr = now.toDateString();
+        
+        if (currentTime === timeTarget && lastNotified !== todayStr) {
+            localStorage.setItem('attendance_last_notified', todayStr);
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification("Attendance Calculator", {
+                     body: "Hey! Don't forget to mark your attendance for today's classes.",
+                     icon: "assets/icon-192.png"
+                });
+            } else {
+                showNotification("⏰ Time to log your attendance for today's classes!", "info");
+            }
+        }
+    }, 60000); 
+}
+
 function exportData() {
     try {
         const data = {
@@ -1359,24 +1825,38 @@ function exportReportToCSV() {
     try {
         const subjectTotals = calculateSubjectTotals();
         let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Subject,Attended,Total Held,Percentage\n";
+        
+        csvContent += `Profile/Semester:,${currentProfileId}\n\n`;
+        csvContent += "Subject,Classes Attended,Classes Held,Attendance %,Safe To Bunk / Classes Needed\n";
 
         let grandAttended = 0;
         let grandTotal = 0;
 
         const sortedNames = Object.keys(subjectTotals).sort();
+        const goalPercent = parseFloat(localStorage.getItem('attendance_goal')) || 75;
+        const goal = goalPercent / 100.0;
         
         sortedNames.forEach(name => {
             const { attended, total } = subjectTotals[name];
-            const percent = total > 0 ? (attended / total * 100).toFixed(2) : '0.00';
-            csvContent += `"${name}",${attended},${total},"${percent}%"\n`;
+            const percent = total > 0 ? (attended / total * 100) : 0;
+            const percentStr = percent.toFixed(2) + "%";
+            
+            let statusStr = '';
+            if (percent >= goalPercent) {
+                const safeToBunk = Math.floor((attended - goal * total) / goal);
+                statusStr = safeToBunk > 0 ? `Safe to bunk ${safeToBunk}` : 'On track';
+            } else {
+                const classesNeeded = Math.ceil((goal * total - attended) / (1 - goal));
+                statusStr = `Need ${classesNeeded}`;
+            }
+
+            csvContent += `"${name}",${attended},${total},"${percentStr}","${statusStr}"\n`;
             grandAttended += attended;
             grandTotal += total;
         });
 
-        // Add Total Row
         const overallPercent = grandTotal > 0 ? (grandAttended / grandTotal * 100).toFixed(2) : '0.00';
-        csvContent += "\nTotal," + grandAttended + "," + grandTotal + `,"${overallPercent}%"\n`;
+        csvContent += `\nTotal Overall,${grandAttended},${grandTotal},"${overallPercent}%",\n`;
         
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -1467,6 +1947,95 @@ function importData(e) {
 }
 
 
+// --- Profile Management ---
+function renderProfileManager() {
+    const manager = document.getElementById('profile-manager');
+    const select = document.getElementById('profile-select');
+    if (!manager || !select) return;
+
+    manager.style.display = 'block';
+    select.innerHTML = '';
+    
+    const profileNames = Object.keys(profiles).sort();
+    
+    profileNames.forEach(name => {
+        select.add(new Option(name, name, false, name === currentProfileId));
+    });
+}
+
+function switchProfile(profileId) {
+    if (!profiles[profileId]) return;
+    saveToLocal();
+    currentProfileId = profileId;
+    
+    timetable = profiles[currentProfileId].timetable || {};
+    attendance = profiles[currentProfileId].attendance || [];
+    monthlyHistory = profiles[currentProfileId].monthlyHistory || [];
+    currentMonthName = profiles[currentProfileId].currentMonthName || null;
+    holidays = profiles[currentProfileId].holidays || [];
+    
+    saveToLocal(); 
+    
+    createTimetableInputs();
+    setupInitialUIState();
+    renderSubjectMasterList();
+    if (document.getElementById('results')?.style.display === 'block' || currentMonthName) {
+         showResults();
+    }
+    showNotification(`Switched to profile: ${profileId}`, 'success');
+}
+
+async function createNewProfile() {
+    const name = await showCustomPrompt("Enter a name for the new profile/semester:");
+    if (!name) return;
+    const cleanName = name.trim();
+    if (!cleanName) return;
+    
+    if (profiles[cleanName]) {
+        showNotification(`Profile "${cleanName}" already exists.`, 'error');
+        return;
+    }
+    
+    saveToLocal(); 
+    
+    profiles[cleanName] = { timetable: {}, attendance: [], monthlyHistory: [], currentMonthName: null, holidays: [] };
+    saveToLocal();
+    switchProfile(cleanName);
+    showNotification(`Created new profile: ${cleanName}`, 'success');
+}
+
+async function renameCurrentProfile() {
+    const newName = await showCustomPrompt("Enter new name for current profile:", currentProfileId);
+    if (!newName) return;
+    const cleanName = newName.trim();
+    if (!cleanName || cleanName === currentProfileId) return;
+    
+    if (profiles[cleanName]) {
+         showNotification(`Profile "${cleanName}" already exists.`, 'error');
+         return;
+    }
+    
+    profiles[cleanName] = profiles[currentProfileId];
+    delete profiles[currentProfileId];
+    saveToLocal();
+    switchProfile(cleanName);
+    showNotification(`Profile renamed to: ${cleanName}`, 'success');
+}
+
+function deleteCurrentProfile() {
+    if (Object.keys(profiles).length <= 1) {
+        showNotification("You cannot delete your only profile. Create a new one first.", 'error');
+        return;
+    }
+    
+    showNotification(`Are you sure you want to delete profile "${currentProfileId}"? All data for this will be lost forever.`, 'confirm', () => {
+        delete profiles[currentProfileId];
+        currentProfileId = Object.keys(profiles)[0];
+        switchProfile(currentProfileId);
+        renderProfileManager();
+    }, 'Confirm Delete');
+}
+
 // --- Initialization ---
 window.addEventListener('DOMContentLoaded', () => {
     try {
@@ -1487,6 +2056,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Helper function to attach all event listeners
 function attachEventListeners() {
+    // Profile Forms
+    document.getElementById('profile-select')?.addEventListener('change', (e) => switchProfile(e.target.value));
+    document.getElementById('add-profile-btn')?.addEventListener('click', createNewProfile);
+    document.getElementById('rename-profile-btn')?.addEventListener('click', renameCurrentProfile);
+    document.getElementById('delete-profile-btn')?.addEventListener('click', deleteCurrentProfile);
+    document.getElementById('add-holiday-btn')?.addEventListener('click', () => {
+        addHolidayUI(document.getElementById('holidays-list'));
+    });
+    
+    document.getElementById('edit-timetable-btn')?.addEventListener('click', () => {
+        const setup = document.getElementById('timetable-setup');
+        if (setup) setup.style.display = setup.style.display === 'none' ? 'block' : 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    
+    // Core Data & Share Listeners
+    document.getElementById('export-data-btn')?.addEventListener('click', exportData);
+    document.getElementById('import-file-input')?.addEventListener('change', importData);
+    document.getElementById('export-report-btn')?.addEventListener('click', exportReportToCSV);
+    
+    document.getElementById('enable-reminders-btn')?.addEventListener('click', toggleReminders);
+
     // Core Forms
     document.getElementById('timetable-form')?.addEventListener('submit', saveTimetable);
     document.getElementById('attendance-form')?.addEventListener('submit', submitAttendance);
@@ -1599,6 +2190,9 @@ function handleGoalChange(e) {
 
 // Initial UI State Logic
 function setupInitialUIState() {
+     renderProfileManager();
+     startReminderLoop(); // Check for set reminders
+
      const timetableSetup = document.getElementById('timetable-setup');
      const projectionsSection = document.getElementById('projections');
      if (!timetableSetup || !projectionsSection) return;
@@ -1630,8 +2224,14 @@ function setupInitialUIState() {
              }
          }
      } else {
-         // Timetable not set up yet
+         // Timetable not set up yet for this profile
          timetableSetup.style.display = 'block';
-         projectionsSection.style.display = 'none';
+         
+         // Explicitly hide all other dashboard sections belonging to an active profile
+         const sectionsToHide = ['previous-attendance-setup', 'month-controls', 'attendance-mark', 'projections', 'results', 'insights-dashboard'];
+         sectionsToHide.forEach(id => {
+             const el = document.getElementById(id);
+             if (el) el.style.display = 'none';
+         });
      }
 }
