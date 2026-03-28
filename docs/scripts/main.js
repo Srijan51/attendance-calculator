@@ -563,6 +563,14 @@ function showMonthControls() {
         showResults();
         showProjectionsCard();
     };
+
+    // Cancel new month form
+    const cancelBtn = document.getElementById('cancel-new-month-btn');
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+            newMonthForm.style.display = 'none';
+        };
+    }
 }
 
 function updateMonthLabel() {
@@ -1376,6 +1384,70 @@ function showCustomPrompt(title, placeholder = '') {
 }
 
 
+// --- Mark Day as Holiday ---
+function markDayAsHoliday() {
+    if (!currentMonthName) { showNotification('Please start a new month first.', 'info'); return; }
+
+    const day = document.getElementById('attendance-day-select')?.value;
+    const date = document.getElementById('attendance-date')?.value;
+
+    if (!day) { showNotification('Error: Could not read day selection.', 'error'); return; }
+    if (!date) { showNotification('Please select a date.', 'error'); return; }
+
+    const baseTimetableSubjects = (timetable[day] || []).map(cls => typeof cls === 'object' ? cls.name : cls);
+
+    // Also include any extra subjects already on this date
+    let subjectsToProcess = [...baseTimetableSubjects];
+    const existingEntry = attendance.find(entry => entry.date === date);
+    if (existingEntry && existingEntry.subjects) {
+        const existingCopy = [...existingEntry.subjects];
+        baseTimetableSubjects.forEach(name => {
+            const idx = existingCopy.findIndex(s => s.name === name);
+            if (idx > -1) existingCopy.splice(idx, 1);
+        });
+        existingCopy.forEach(extra => subjectsToProcess.push(extra.name));
+    }
+
+    if (subjectsToProcess.length === 0) {
+        showNotification('No classes scheduled for this day.', 'info', null, 'Nothing to Mark');
+        return;
+    }
+
+    showNotification(`Mark all ${subjectsToProcess.length} class(es) on ${date} as Holiday (Cancelled)?`, 'confirm', () => {
+        const cancelledSubjects = subjectsToProcess.map(name => ({ name, status: 'cancelled' }));
+
+        const existingIdx = attendance.findIndex(entry => entry.date === date);
+        if (existingIdx > -1) {
+            attendance[existingIdx].subjects = cancelledSubjects;
+            attendance[existingIdx].day = day;
+        } else {
+            attendance.push({ day, date, month: currentMonthName, subjects: cancelledSubjects });
+        }
+
+        saveToLocal();
+        showResults();
+        showAttendanceForm(); // Refresh to show updated status
+        showNotification(`All classes on ${date} marked as Holiday (Cancelled).`, 'success');
+    }, 'Mark as Holiday');
+}
+
+// --- Back Navigation ---
+function goBackToTimetable() {
+    // Hide all downstream sections
+    const sectionsToHide = ['previous-attendance-setup', 'month-controls', 'attendance-mark', 'projections', 'results', 'insights-dashboard'];
+    sectionsToHide.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    // Show timetable setup
+    const timetableSetup = document.getElementById('timetable-setup');
+    if (timetableSetup) {
+        timetableSetup.style.display = 'block';
+        createTimetableInputs();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
 function removeAllRecords() { 
     showNotification( 'Delete all records? This will clear your timetable, subjects, and all attendance history. Cannot be undone.', 'confirm', () => { 
         localStorage.clear(); 
@@ -2095,6 +2167,11 @@ function attachEventListeners() {
     document.getElementById('cancel-modify')?.addEventListener('click', () => toggleModifyForm(false));
     document.getElementById('project-attend-btn')?.addEventListener('click', () => calculateProjection(true));
     document.getElementById('project-miss-btn')?.addEventListener('click', () => calculateProjection(false));
+
+    // Holiday & Back Navigation
+    document.getElementById('mark-holiday-btn')?.addEventListener('click', markDayAsHoliday);
+    document.getElementById('back-to-timetable-from-prev')?.addEventListener('click', goBackToTimetable);
+    document.getElementById('back-to-timetable-from-month')?.addEventListener('click', goBackToTimetable);
 
     // *** NEW EVENT LISTENER ***
     document.getElementById('view-date-btn')?.addEventListener('click', showAttendanceForDate);

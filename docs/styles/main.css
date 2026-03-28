@@ -701,6 +701,40 @@ button.button-danger:hover {
     box-shadow: 0 6px 20px 0 var(--danger-glow);
 }
 
+/* Holiday Button */
+button.button-holiday {
+    background: #ff9500;
+    color: #fff;
+}
+
+button.button-holiday:hover {
+    background: #e08600;
+    box-shadow: 0 6px 20px 0 rgba(255, 149, 0, 0.35);
+}
+
+/* Back Button */
+.back-btn {
+    background: transparent;
+    color: var(--primary-accent);
+    border: none;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.75rem;
+    border-radius: var(--border-radius-md);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--input-bg);
+    transform: translateX(-3px);
+    box-shadow: none;
+}
+
 /* --- Profile Manager --- */
 .profile-card {
     background: rgba(40, 167, 69, 0.05); /* subtle tint */
