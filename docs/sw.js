@@ -1,4 +1,4 @@
-const CACHE_NAME = 'attendance-calculator-v1';
+const CACHE_NAME = 'attendance-calculator-v2';
 const FILES_TO_CACHE = [
   'index.html',
   'styles/main.css',
