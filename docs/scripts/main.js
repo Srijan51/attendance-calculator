@@ -1368,6 +1368,8 @@ function showCustomPrompt(title, placeholder = '') {
             confirmBtn.replaceWith(confirmBtn.cloneNode(true));
             cancelBtn.replaceWith(cancelBtn.cloneNode(true));
             inputEl.replaceWith(inputEl.cloneNode(true));
+            // Re-attach notification listeners since we replaced the buttons
+            setupNotificationListeners();
         };
 
         const newConfirmBtn = document.getElementById('custom-notification-confirm');
@@ -1386,6 +1388,7 @@ function showCustomPrompt(title, placeholder = '') {
 
 // --- Mark Day as Holiday ---
 function markDayAsHoliday() {
+    console.log('markDayAsHoliday called');
     if (!currentMonthName) { showNotification('Please start a new month first.', 'info'); return; }
 
     const day = document.getElementById('attendance-day-select')?.value;
@@ -1433,6 +1436,7 @@ function markDayAsHoliday() {
 
 // --- Back Navigation ---
 function goBackToTimetable() {
+    console.log('goBackToTimetable called');
     // Hide all downstream sections
     const sectionsToHide = ['previous-attendance-setup', 'month-controls', 'attendance-mark', 'projections', 'results', 'insights-dashboard'];
     sectionsToHide.forEach(id => {

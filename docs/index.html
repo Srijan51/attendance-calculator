@@ -66,7 +66,7 @@
         </section>
 
         <section id="previous-attendance-setup" class="card" style="display:none;">
-            <button type="button" id="back-to-timetable-from-prev" class="back-btn">← Back to Timetable</button>
+            <button type="button" id="back-to-timetable-from-prev" class="back-btn" onclick="goBackToTimetable()">← Back to Timetable</button>
             <h2>📥 Import Previous Attendance (Optional)</h2>
             <p>Enter your exact attendance data from before you started using this calculator. This will be used as the
                 baseline for your "Complete Attendance" percentage.</p>
@@ -81,7 +81,7 @@
         </section>
 
         <div id="month-controls" class="card" style="display:none;">
-            <button type="button" id="back-to-timetable-from-month" class="back-btn">← Back to Timetable</button>
+            <button type="button" id="back-to-timetable-from-month" class="back-btn" onclick="goBackToTimetable()">← Back to Timetable</button>
             <div class="month-header">
                 <span id="current-month-label"></span>
                 <button id="new-month-btn">Start New Month</button>
@@ -89,7 +89,7 @@
             <form id="new-month-form" style="display:none;">
                 <input type="text" id="month-name-input" required placeholder="Enter month name (e.g. October 2025)">
                 <button type="submit">Confirm</button>
-                <button type="button" id="cancel-new-month-btn" class="button-secondary">Cancel</button>
+                <button type="button" id="cancel-new-month-btn" class="button-secondary" onclick="document.getElementById('new-month-form').style.display='none'">Cancel</button>
             </form>
         </div>
 
@@ -103,7 +103,7 @@
 
                 <div class="form-actions-stacked" style="margin-top: 1.5rem;">
                     <button type="submit">Submit Attendance</button>
-                    <button type="button" id="mark-holiday-btn" class="button-holiday">🌴 Mark Day as Holiday</button>
+                    <button type="button" id="mark-holiday-btn" class="button-holiday" onclick="markDayAsHoliday()">🌴 Mark Day as Holiday</button>
                     <button type="button" id="delete-day-btn" class="button-danger">Delete This Day's
                         Attendance</button>
                 </div>
