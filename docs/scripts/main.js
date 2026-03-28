@@ -2164,7 +2164,6 @@ function attachEventListeners() {
     document.getElementById('remove-all')?.addEventListener('click', removeAllRecords);
     document.getElementById('skip-previous-btn')?.addEventListener('click', skipPreviousAttendance);
     document.getElementById('export-data-btn')?.addEventListener('click', exportData);
-    document.getElementById('export-report-btn')?.addEventListener('click', exportReportToCSV); // New
     document.getElementById('delete-day-btn')?.addEventListener('click', deleteDayAttendance);
     document.getElementById('add-subject-btn-show')?.addEventListener('click', () => toggleModifyForm(true, 'add'));
     document.getElementById('remove-subject-btn-show')?.addEventListener('click', () => toggleModifyForm(true, 'remove'));
