@@ -267,7 +267,7 @@
 }
 
 /* Hide accent color picker */
-[data-theme="zen"] #danger-zone .settings-section:nth-of-type(2) {
+[data-theme="zen"] #danger-zone .settings-section:nth-of-type(3) {
     display: none;
 }
 
@@ -1111,6 +1111,8 @@ button.button-holiday:hover {
 /* --- Attendance Table --- */
 #attendance-table-container {
     margin-top: 2rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .attendance-table {
@@ -1638,6 +1640,19 @@ button.button-holiday:hover {
 
 
 @media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    .card {
+        padding: 1rem 1.25rem;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+    }
+
     .backup-controls {
         flex-direction: column;
     }
@@ -1707,6 +1722,88 @@ button.button-holiday:hover {
 
     .view-date-form-group button {
         width: 100%;
+    }
+
+    /* --- Extra UI Fixes for Phone Margins --- */
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .form-actions button,
+    .form-actions-stacked button {
+        width: 100%;
+    }
+
+    #modify-buttons-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    #modify-buttons-container button {
+        width: 100%;
+    }
+
+    .profile-actions {
+        flex-wrap: wrap;
+    }
+
+    .profile-actions select {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-actions button {
+        flex: 1 1 auto;
+    }
+
+    #new-month-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #new-month-form input,
+    #new-month-form button {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    #custom-notification-buttons {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    #custom-notification-buttons button {
+        width: 100%;
+    }
+
+    /* Settings section mobile fixes */
+    .settings-section .form-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .settings-section .form-group input,
+    .settings-section .form-group button {
+        width: 100% !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    #remove-all {
+        width: 100%;
+    }
+
+    .settings-section div[style*="display: flex"] {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    .settings-section div[style*="display: flex"] label.button-secondary {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 0.5rem !important;
     }
 }
 
