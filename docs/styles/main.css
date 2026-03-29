@@ -286,8 +286,33 @@
     padding: 0;
 }
 
+::selection {
+    background: var(--primary-accent);
+    color: #fff;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--body-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-accent);
+}
+
 html {
     transition: background-color 0.3s ease, color 0.3s ease;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -657,7 +682,14 @@ input[type="submit"] {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     text-align: center;
+    touch-action: manipulation;
     transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button:focus-visible,
+input[type="submit"]:focus-visible {
+    outline: 3px solid var(--primary-glow);
+    outline-offset: 2px;
 }
 
 button:hover,
