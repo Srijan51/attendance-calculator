@@ -585,24 +585,44 @@ function updateMonthLabel() {
 function showAttendanceForm() {
     const selectorsDiv = document.getElementById('date-day-selectors');
     if (!selectorsDiv) return;
-    selectorsDiv.innerHTML = '';
 
-    const dayLabel = document.createElement('label'); dayLabel.htmlFor = 'attendance-day-select'; dayLabel.textContent = 'Day:';
-    const daySelect = document.createElement('select'); daySelect.id = 'attendance-day-select';
-    DAYS.forEach(day => { daySelect.add(new Option(day, day)); });
+    // Preserve currently selected date before rebuilding the form
+    const existingDateInput = document.getElementById('attendance-date');
+    const preservedDate = existingDateInput ? existingDateInput.value : null;
+
+    selectorsDiv.innerHTML = '';
 
     const dateLabel = document.createElement('label'); dateLabel.htmlFor = 'attendance-date'; dateLabel.textContent = 'Date:';
     const dateInput = document.createElement('input'); dateInput.type = 'date'; dateInput.id = 'attendance-date';
 
-    const dayWrapper = document.createElement('div'); dayWrapper.append(dayLabel, daySelect);
+    const dayLabel = document.createElement('label'); dayLabel.htmlFor = 'attendance-day-select'; dayLabel.textContent = 'Day:';
+    const dayInput = document.createElement('input'); dayInput.type = 'text'; dayInput.id = 'attendance-day-select';
+    dayInput.readOnly = true;
+    dayInput.style.cursor = 'default';
+    dayInput.style.opacity = '0.85';
+    dayInput.style.backgroundColor = 'var(--input-bg, #f0f0f0)';
+
     const dateWrapper = document.createElement('div'); dateWrapper.append(dateLabel, dateInput);
-    selectorsDiv.append(dayWrapper, dateWrapper);
+    const dayWrapper = document.createElement('div'); dayWrapper.append(dayLabel, dayInput);
+    selectorsDiv.append(dateWrapper, dayWrapper);
+
+    // Helper to compute day name from a date string
+    const getDayFromDate = (dateStr) => {
+        if (!dateStr) return '';
+        try {
+            const [year, month, dayOfMonth] = dateStr.split('-');
+            const localDate = new Date(year, month - 1, dayOfMonth);
+            return DAYS_OF_WEEK[localDate.getDay()];
+        } catch (e) {
+            return '';
+        }
+    };
 
     const renderSubjects = () => {
         const todayDiv = document.getElementById('today-classes');
         if (!todayDiv) return;
         todayDiv.innerHTML = '';
-        const day = daySelect.value;
+        const day = dayInput.value;
         todayDiv.innerHTML = `<h3>${day}</h3>`;
 
         const baseTimetableSubjects = (timetable[day] || []).map(cls => typeof cls === 'object' ? cls.name : cls);
@@ -679,24 +699,21 @@ function showAttendanceForm() {
         }
     };
 
-    daySelect.addEventListener('change', renderSubjects);
     dateInput.addEventListener('change', (e) => {
         const date = e.target.value; if (!date) return;
-        try { // Add try-catch for date parsing
-            const [year, month, dayOfMonth] = date.split('-');
-            const localDate = new Date(year, month - 1, dayOfMonth);
-            const dayName = DAYS_OF_WEEK[localDate.getDay()];
-            daySelect.value = dayName;
-            renderSubjects(); // Re-render subjects which will now use the date to find records
-        } catch (dateError) {
-            console.error("Error processing date input:", dateError);
-        }
+        dayInput.value = getDayFromDate(date);
+        renderSubjects();
     });
 
-    const today = new Date();
-    const dayName = DAYS_OF_WEEK[today.getDay()];
-    daySelect.value = dayName;
-    dateInput.valueAsDate = today;
+    // Set date: use preserved date if available, otherwise default to today
+    if (preservedDate) {
+        dateInput.value = preservedDate;
+        dayInput.value = getDayFromDate(preservedDate);
+    } else {
+        const today = new Date();
+        dateInput.valueAsDate = today;
+        dayInput.value = DAYS_OF_WEEK[today.getDay()];
+    }
 
     renderSubjects();
 }
@@ -1504,8 +1521,14 @@ function toggleModifyForm(show = false, mode = 'add') {
             statusWrapper.classList.add('hidden');
             newDateFields.classList.add('hidden');
         }
-        // Reset form fields
-        document.getElementById('modify-date').valueAsDate = new Date();
+        // Pre-fill date from main attendance form if available
+        const mainDateVal = document.getElementById('attendance-date')?.value;
+        const modifyDateInput = document.getElementById('modify-date');
+        if (mainDateVal && modifyDateInput) {
+            modifyDateInput.value = mainDateVal;
+        } else if (modifyDateInput) {
+            modifyDateInput.valueAsDate = new Date();
+        }
         document.getElementById('modify-subject').value = '';
         document.getElementById('modify-status-attended').checked = true; // Default to attended
         checkNewDate(); // Auto-fill day
@@ -1572,8 +1595,36 @@ function handleModifySubject(e) {
     
     saveToLocal();
     showResults();
-    showAttendanceForm(); // Refresh form
-    toggleModifyForm(false); // Hide form
+
+    if (action === 'add') {
+        // Keep form open for adding more subjects — just clear the subject name
+        document.getElementById('modify-subject').value = '';
+        // Sync the main attendance form's date to match the modify form's date
+        const mainDateInput = document.getElementById('attendance-date');
+        if (mainDateInput) {
+            mainDateInput.value = date;
+            // Also update the day display
+            const mainDayInput = document.getElementById('attendance-day-select');
+            if (mainDayInput) mainDayInput.value = day;
+        }
+        showAttendanceForm(); // Refresh subjects display (date is preserved)
+        // Explicitly ensure the modify form stays visible after DOM rebuild
+        const modifyForm = document.getElementById('modify-subject-form');
+        if (modifyForm) {
+            modifyForm.classList.remove('hidden');
+            // Scroll the form back into view after a brief DOM settle
+            setTimeout(() => {
+                const subjectInput = document.getElementById('modify-subject');
+                if (subjectInput) {
+                    subjectInput.focus();
+                    subjectInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+    } else {
+        showAttendanceForm(); // Refresh form
+        toggleModifyForm(false); // Hide form only on remove
+    }
 }
 
 function checkNewDate(e) {

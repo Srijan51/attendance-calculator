@@ -313,6 +313,12 @@ html {
     transition: background-color 0.3s ease, color 0.3s ease;
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
+    -webkit-overflow-scrolling: touch;
+}
+
+html,
+body {
+    scroll-behavior: smooth;
 }
 
 body {
@@ -322,6 +328,8 @@ body {
     line-height: 1.6;
     padding: 20px;
     overflow-x: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
     transition: background-color 0.4s ease, color 0.4s ease;
 }
 
