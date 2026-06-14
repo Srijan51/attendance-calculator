@@ -1871,7 +1871,7 @@ function renderInsightsDashboard() {
     if (bestDayEl) bestDayEl.innerText = bestDayPct >= 0 ? `${bestDayName} (${Math.round(bestDayPct)}%)` : '--';
 
     evaluateBadges(streak, highestPct, Object.keys(subjectTotals).length);
-    renderWeeklyTrendChart();
+    renderDayOfWeekChart();
 }
 
 function evaluateBadges(streak, highestPct, totalSubjects) {
@@ -1904,60 +1904,67 @@ function evaluateBadges(streak, highestPct, totalSubjects) {
      });
 }
 
-function renderWeeklyTrendChart() {
-    const ctx = document.getElementById('weekly-trend-chart');
+function renderDayOfWeekChart() {
+    const ctx = document.getElementById('day-of-week-chart');
     if (!ctx) return;
     
-    const weeks = {};
-    attendance.forEach(entry => {
-         if(!entry.date) return;
-         const d = new Date(entry.date);
-         
-         const label = `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleString('default', { month: 'short' })}`;
-         
-         if(!weeks[label]) weeks[label] = { attended: 0, total: 0, dateObj: d };
-         
-         entry.subjects.forEach(sub => {
-              if (sub.status !== 'cancelled') {
-                   weeks[label].total++;
-                   if (sub.status === 'attended') weeks[label].attended++;
-              }
-         });
-    });
-
-    const sortedWeeksObj = Object.values(weeks).sort((a,b) => a.dateObj - b.dateObj);
-    const lastWeeks = sortedWeeksObj.slice(-6);
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const stats = {
+        'Monday': { attended: 0, total: 0 },
+        'Tuesday': { attended: 0, total: 0 },
+        'Wednesday': { attended: 0, total: 0 },
+        'Thursday': { attended: 0, total: 0 },
+        'Friday': { attended: 0, total: 0 },
+        'Saturday': { attended: 0, total: 0 }
+    };
     
-    const labels = lastWeeks.map(w => {
-         return `W${Math.ceil(w.dateObj.getDate() / 7)} ${w.dateObj.toLocaleString('default', { month: 'short' })}`;
+    attendance.forEach(entry => {
+        if (!stats[entry.day]) return;
+        entry.subjects.forEach(sub => {
+            if (sub.status !== 'cancelled') {
+                stats[entry.day].total++;
+                if (sub.status === 'attended') stats[entry.day].attended++;
+            }
+        });
     });
-    const data = lastWeeks.map(w => w.total > 0 ? (w.attended / w.total * 100).toFixed(1) : 0);
 
-    if (window.weeklyTrendChartInstance) window.weeklyTrendChartInstance.destroy();
+    const labels = [];
+    const data = [];
+    
+    days.forEach(day => {
+        if (stats[day].total > 0) {
+            labels.push(day.substring(0, 3));
+            data.push((stats[day].attended / stats[day].total * 100).toFixed(1));
+        }
+    });
+
+    if (window.dayOfWeekChartInstance) window.dayOfWeekChartInstance.destroy();
     
     const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-accent').trim() || '#007aff';
     
-    window.weeklyTrendChartInstance = new Chart(ctx, {
-        type: 'line',
+    window.dayOfWeekChartInstance = new Chart(ctx, {
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Weekly Att %',
+                label: 'Attendance %',
                 data: data,
+                backgroundColor: primaryColor + '88',
                 borderColor: primaryColor,
-                backgroundColor: primaryColor + '33',
-                borderWidth: 3,
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: primaryColor,
-                pointRadius: 5
+                borderWidth: 2,
+                borderRadius: 4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { min: 0, max: 100 } },
-            plugins: { legend: { display: false } }
+            scales: { 
+                y: { min: 0, max: 100, ticks: { callback: function(value) { return value + '%' } } } 
+            },
+            plugins: { 
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return context.parsed.y + '%' } } }
+            }
         }
     });
 }
