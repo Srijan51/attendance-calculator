@@ -1,5 +1,6 @@
-const CACHE_NAME = 'attendance-calculator-v2';
+const CACHE_NAME = 'attendance-calculator-v3';
 const FILES_TO_CACHE = [
+  './',
   'index.html',
   'styles/main.css',
   'scripts/main.js',
@@ -9,6 +10,7 @@ const FILES_TO_CACHE = [
 
 // Install event: cache the app shell
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Force immediate activation for updates
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -18,24 +20,32 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch event: serve from cache, fall back to network
+// Fetch event: Network First strategy to ensure latest changes are visible
 self.addEventListener('fetch', (event) => {
+  // We only want to handle GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        // Not in cache - fetch from network
-        return fetch(event.request);
-      }
-    )
+    fetch(event.request)
+      .then((networkResponse) => {
+        // If the request is successful, clone it, update the cache, and return the response
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+      })
+      .catch(() => {
+        // If network fetch fails (offline), fall back to cache
+        return caches.match(event.request);
+      })
   );
 });
 
 // Activate event: clean up old caches
 self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim()); // Take control of all pages immediately
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
