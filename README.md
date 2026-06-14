@@ -1,46 +1,38 @@
-# AttendEase
+# AttendEASE
 
-This project is an AttendEase that allows users to input their weekly class schedule and track their attendance. It calculates attendance percentages based on the classes attended and provides a user-friendly interface for managing attendance records.
+This project is an AttendEASE that allows users to input their weekly class schedule and track their attendance. It calculates attendance percentages based on the classes attended and provides a user-friendly interface for managing attendance records.
 
 ## Features
 
 - Input weekly class schedule
-- Track classes attended
+- Track attendance for each class
 - Calculate attendance percentages
 - User-friendly interface
 
-## Project Structure
+## File Structure
 
 ```
-attendance-calculator
-├── src
-│   ├── index.html        # Main HTML document for AttendEase
-│   ├── styles
-│   │   └── main.css      # CSS styles for the website
-│   └── scripts
-│       └── main.js       # JavaScript code for handling attendance calculations
+attendance-calculator/
+│   ├── index.html        # Main HTML document for AttendEASE
+│   ├── styles/           # CSS files for styling
+│   │   └── main.css      # Main stylesheet
+│   └── scripts/          # JavaScript files for functionality
+│       └── main.js       # Main logic for tracking and calculating attendance
+├── package.json          # npm configuration file (if applicable)
 └── README.md             # Project documentation
 ```
 
-## Installation
+## Setup Instructions
 
-1. Clone the repository:
-   ```
-   git clone <https://github.com/Srijan51/attendance-calculator>
-   ```
-
-2. Navigate to the project directory:
-   ```
-   cd attendance-calculator
-   ```
-
-3. Open `src/index.html` in your web browser to view AttendEase.
+1. Clone the repository or download the source code.
+2. Ensure you have a web browser installed.
+3. Open `src/index.html` in your web browser to view AttendEASE.
 
 ## Usage
 
-1. Enter your weekly class schedule in the provided form.
-2. Input the classes you have attended.
-3. The calculator will automatically compute your attendance percentage based on the data provided.
+- Enter your class schedule for the week.
+- Mark your attendance for each class.
+- The application will automatically calculate your attendance percentage. based on the data provided.
 
 ## Contributing
 

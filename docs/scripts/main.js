@@ -2021,7 +2021,7 @@ function startReminderLoop() {
         if (currentTime === timeTarget && lastNotified !== todayStr) {
             localStorage.setItem('attendance_last_notified', todayStr);
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification("AttendEase", {
+                new Notification("AttendEASE", {
                      body: "Hey! Don't forget to mark your attendance for today's classes.",
                      icon: "assets/icon-192.png"
                 });
