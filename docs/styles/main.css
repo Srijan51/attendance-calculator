@@ -381,7 +381,7 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: -1;
-    background: linear-gradient(-45deg, #a18cd1, #fbc2eb, #8fd3f4, #84fab0);
+    background: linear-gradient(-45deg, #ffe0b2, #ffcc80, #ffb74d, #ffcc80);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
     opacity: 0.8;
@@ -443,6 +443,17 @@ h1 {
     text-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
     animation: slideInUp 0.5s ease-out forwards;
     transition: color 0.3s ease;
+}
+
+.highlight-title {
+    background: linear-gradient(90deg, #ff007f, #7f00ff, #007fff);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientText 3s linear infinite;
+    display: inline-block;
+    text-shadow: none; /* remove text shadow for gradient text to work properly */
 }
 
 h2 {
