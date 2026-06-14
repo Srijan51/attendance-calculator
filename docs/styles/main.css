@@ -56,6 +56,7 @@
 
     --border-radius-lg: 1.5rem;
     --border-radius-md: 1rem;
+    --title-gradient: linear-gradient(135deg, #312e81 0%, #5b21b6 50%, #be185d 100%);
 }
 
 /* --- DARK MODE --- */
@@ -95,6 +96,7 @@
 
     --bunker-success-text: #34d399;
     --bunker-danger-text: #fca5a5;
+    --title-gradient: linear-gradient(135deg, #a78bfa 0%, #f472b6 50%, #fb923c 100%);
 }
 
 /* --- ZEN MODE --- */
@@ -152,8 +154,8 @@
     --neutral-text: #495057;
 
     --bunker-success-text: #155724;
-    --bunker-success-text: #155724;
     --bunker-danger-text: #721c24;
+    --title-gradient: linear-gradient(135deg, #0f172a 0%, #334155 100%);
 }
 
 /* Premium Time Input Wrapper */
@@ -446,16 +448,23 @@ h1 {
 }
 
 .highlight-title {
-    background: linear-gradient(90deg, #1e3a8a, #4338ca, #312e81); /* Dark blue to indigo */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    background: var(--title-gradient);
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    -webkit-text-stroke: 2px rgba(255, 255, 255, 0.9);
-    animation: gradientText 4s linear infinite;
+    animation: gradientText 8s ease infinite;
     display: inline-block;
-    filter: drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.2));
-    padding: 0 10px;
+    padding: 4px 0;
+    text-shadow: none !important;
+}
+
+[data-theme="zen"] .highlight-title {
+    animation: none;
+    background-size: 100%;
 }
 
 h2 {
