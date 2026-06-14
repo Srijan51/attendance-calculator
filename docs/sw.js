@@ -1,4 +1,4 @@
-const CACHE_NAME = 'attendance-calculator-v3';
+const CACHE_NAME = 'attendease-v3';
 const FILES_TO_CACHE = [
   './',
   'index.html',

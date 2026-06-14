@@ -1,6 +1,6 @@
 {
-  "name": "Attendance Calculator",
-  "short_name": "Attendance",
+  "name": "AttendEase",
+  "short_name": "AttendEase",
   "description": "A simple calculator to track and manage class attendance.",
   "icons": [
     {

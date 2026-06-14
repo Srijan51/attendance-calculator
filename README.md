@@ -1,6 +1,6 @@
-# Attendance Calculator
+# AttendEase
 
-This project is an Attendance Calculator that allows users to input their weekly class schedule and track their attendance. It calculates attendance percentages based on the classes attended and provides a user-friendly interface for managing attendance records.
+This project is an AttendEase that allows users to input their weekly class schedule and track their attendance. It calculates attendance percentages based on the classes attended and provides a user-friendly interface for managing attendance records.
 
 ## Features
 
@@ -14,7 +14,7 @@ This project is an Attendance Calculator that allows users to input their weekly
 ```
 attendance-calculator
 ├── src
-│   ├── index.html        # Main HTML document for the attendance calculator
+│   ├── index.html        # Main HTML document for AttendEase
 │   ├── styles
 │   │   └── main.css      # CSS styles for the website
 │   └── scripts
@@ -34,7 +34,7 @@ attendance-calculator
    cd attendance-calculator
    ```
 
-3. Open `src/index.html` in your web browser to view the attendance calculator.
+3. Open `src/index.html` in your web browser to view AttendEase.
 
 ## Usage
 

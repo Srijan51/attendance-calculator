@@ -305,7 +305,6 @@
 }
 
 html {
-    transition: background-color 0.3s ease, color 0.3s ease;
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
     -webkit-overflow-scrolling: touch;
@@ -326,7 +325,6 @@ body {
     overflow-x: hidden;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
-    transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 /* --- Keyframe Animations --- */
@@ -387,6 +385,8 @@ body {
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
     opacity: 0.8;
+    will-change: background-position;
+    transform: translateZ(0);
 }
 
 [data-theme="dark"] .background-shapes {
@@ -2066,6 +2066,7 @@ button.button-holiday:hover {
 .page.active {
     display: block;
     animation: pageIn 0.35s ease-out;
+    will-change: opacity, transform;
 }
 
 @keyframes pageIn {
