@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Calculator</title>
+    <meta name="description" content="Track and calculate your class attendance with smart insights, projections, and bunk management.">
     <link rel="stylesheet" href="styles/main.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,20 +27,7 @@
     <div class="container">
         <h1>Attendance Calculator</h1>
 
-        <!-- NEW: Profile Manager -->
-        <div id="profile-manager" class="card profile-card" style="display:none;">
-            <div class="profile-header">
-                <h2>🎓 Semester / Profile</h2>
-                <div class="profile-actions">
-                    <select id="profile-select"></select>
-                    <button type="button" id="edit-timetable-btn" class="button-secondary small-action-btn">Edit Setup</button>
-                    <button type="button" id="add-profile-btn" class="button-secondary small-action-btn">New</button>
-                    <button type="button" id="rename-profile-btn" class="button-secondary small-action-btn">Rename</button>
-                    <button type="button" id="delete-profile-btn" class="button-danger small-action-btn">Delete</button>
-                </div>
-            </div>
-        </div>
-
+        <!-- Timetable Setup (Overlay Flow - not in any page) -->
         <section id="timetable-setup" class="card">
             <h2>🗓️ Set Your Weekly Timetable & Subjects</h2>
             <p>Define subjects for each day. Assign a color and an optional emoji icon to each unique subject name the
@@ -61,10 +49,11 @@
                     <button type="button" id="add-holiday-btn" class="button-secondary" style="margin-top: 0.5rem; width: 100%;">+ Add Holiday</button>
                 </div>
 
-                <button type="submit" style="width: 100%;">Save Timetable & Subjects</button>
+                <button type="submit" class="pulse-btn" style="width: 100%;">Save Timetable & Subjects</button>
             </form>
         </section>
 
+        <!-- Previous Attendance Setup (Overlay Flow - not in any page) -->
         <section id="previous-attendance-setup" class="card" style="display:none;">
             <button type="button" id="back-to-timetable-from-prev" class="back-btn" onclick="goBackToTimetable()">← Back to Timetable</button>
             <h2>📥 Import Previous Attendance (Optional)</h2>
@@ -80,285 +69,340 @@
             </form>
         </section>
 
-        <div id="month-controls" class="card" style="display:none;">
-            <button type="button" id="back-to-timetable-from-month" class="back-btn" onclick="goBackToTimetable()">← Back to Timetable</button>
-            <div class="month-header">
-                <span id="current-month-label"></span>
-                <button id="new-month-btn">Start New Month</button>
+        <!-- ==================== PAGE: HOME ==================== -->
+        <div class="page" id="page-home">
+
+            <!-- Profile Manager -->
+            <div id="profile-manager" class="card profile-card" style="display:none;">
+                <div class="profile-header">
+                    <h2>🎓 Semester / Profile</h2>
+                    <div class="profile-actions">
+                        <select id="profile-select"></select>
+                        <button type="button" id="edit-timetable-btn" class="button-secondary small-action-btn">Edit Setup</button>
+                        <button type="button" id="add-profile-btn" class="button-secondary small-action-btn">New</button>
+                        <button type="button" id="rename-profile-btn" class="button-secondary small-action-btn">Rename</button>
+                        <button type="button" id="delete-profile-btn" class="button-danger small-action-btn">Delete</button>
+                    </div>
+                </div>
             </div>
-            <form id="new-month-form" style="display:none;">
-                <input type="text" id="month-name-input" required placeholder="Enter month name (e.g. October 2025)">
-                <button type="submit">Confirm</button>
-                <button type="button" id="cancel-new-month-btn" class="button-secondary" onclick="document.getElementById('new-month-form').style.display='none'">Cancel</button>
-            </form>
-        </div>
 
-        <section id="attendance-mark" class="card" style="display:none;">
-            <h2>✏️ Mark Attendance</h2>
-            <form id="attendance-form">
-                <div id="date-day-selectors">
+            <!-- Month Controls -->
+            <div id="month-controls" class="card" style="display:none;">
+                <div class="month-header">
+                    <span id="current-month-label"></span>
+                    <button id="new-month-btn">Start New Month</button>
                 </div>
-                <div id="today-classes">
-                </div>
-
-                <div class="form-actions-stacked" style="margin-top: 1.5rem;">
-                    <button type="submit">Submit Attendance</button>
-                    <button type="button" id="mark-holiday-btn" class="button-holiday" onclick="markDayAsHoliday()">🌴 Mark Day as Holiday</button>
-                    <button type="button" id="delete-day-btn" class="button-danger">Delete This Day's
-                        Attendance</button>
-                </div>
-            </form>
-
-            <div id="subject-modify-controls">
-                <div id="modify-buttons-container">
-                    <button id="add-subject-btn-show" type="button">Add Subject for Date</button>
-                    <button id="remove-subject-btn-show" type="button">Remove Subject for Date</button>
-                </div>
-
-                <form id="modify-subject-form" class="hidden">
-                    <h3 id="modify-form-title"></h3>
-                    <input type="hidden" id="modify-action" value="">
-
-                    <div>
-                        <label for="modify-date">Date</label>
-                        <input type="date" id="modify-date" required>
-                    </div>
-                    <div>
-                        <label for="modify-subject">Subject Name (Must match existing)</label>
-                        <input type="text" id="modify-subject" required placeholder="e.g. Physics">
-                    </div>
-
-                    <div id="modify-status-wrapper" class="hidden">
-                        <label>Status</label>
-                        <div class="subject-status-group" id="modify-status-group">
-                            <input type="radio" id="modify-status-attended" name="modify-status" value="attended"
-                                checked>
-                            <label for="modify-status-attended" class="status-label status-attended">Attended</label>
-
-                            <input type="radio" id="modify-status-missed" name="modify-status" value="missed">
-                            <label for="modify-status-missed" class="status-label status-missed">Missed</label>
-
-                            <input type="radio" id="modify-status-cancelled" name="modify-status" value="cancelled">
-                            <label for="modify-status-cancelled" class="status-label status-cancelled">Cancelled</label>
-                        </div>
-                    </div>
-
-                    <div id="new-date-fields" class="hidden">
-                        <div>
-                            <label for="modify-day">Day of Week (Auto-detected)</label>
-                            <input type="text" id="modify-day" readonly>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit">Confirm</button>
-                        <button type="button" id="cancel-modify">Cancel</button>
-                    </div>
+                <form id="new-month-form" style="display:none;">
+                    <input type="text" id="month-name-input" required placeholder="Enter month name (e.g. October 2025)">
+                    <button type="submit">Confirm</button>
+                    <button type="button" id="cancel-new-month-btn" class="button-secondary" onclick="document.getElementById('new-month-form').style.display='none'">Cancel</button>
                 </form>
             </div>
 
-        </section>
-
-        <section id="projections" class="card" style="display:none;">
-            <h2>🔮 Attendance Projections</h2>
-            <p>See how future classes will affect your overall percentage. Select a subject and enter the number of
-                classes to project.</p>
-            <form id="projection-form">
-                <div class="projection-inputs">
-                    <div>
-                        <label for="projection-subject">Select Subject</label>
-                        <select id="projection-subject"></select>
+            <!-- Mark Attendance -->
+            <section id="attendance-mark" class="card" style="display:none;">
+                <h2>✏️ Mark Attendance</h2>
+                <form id="attendance-form">
+                    <div id="date-day-selectors">
                     </div>
-                    <div>
-                        <label for="projection-classes">Future Classes</label>
-                        <input type="number" id="projection-classes" value="1" min="1">
+                    <div id="today-classes">
                     </div>
+
+                    <div class="form-actions-stacked" style="margin-top: 1.5rem;">
+                        <button type="submit" class="pulse-btn">Submit Attendance</button>
+                        <button type="button" id="mark-holiday-btn" class="button-holiday" onclick="markDayAsHoliday()">🌴 Mark Day as Holiday</button>
+                        <button type="button" id="delete-day-btn" class="button-danger">Delete This Day's
+                            Attendance</button>
+                    </div>
+                </form>
+
+                <div id="subject-modify-controls">
+                    <div id="modify-buttons-container">
+                        <button id="add-subject-btn-show" type="button">Add Subject for Date</button>
+                        <button id="remove-subject-btn-show" type="button">Remove Subject for Date</button>
+                    </div>
+
+                    <form id="modify-subject-form" class="hidden">
+                        <h3 id="modify-form-title"></h3>
+                        <input type="hidden" id="modify-action" value="">
+
+                        <div>
+                            <label for="modify-date">Date</label>
+                            <input type="date" id="modify-date" required>
+                        </div>
+                        <div>
+                            <label for="modify-subject">Subject Name (Must match existing)</label>
+                            <input type="text" id="modify-subject" required placeholder="e.g. Physics">
+                        </div>
+
+                        <div id="modify-status-wrapper" class="hidden">
+                            <label>Status</label>
+                            <div class="subject-status-group" id="modify-status-group">
+                                <input type="radio" id="modify-status-attended" name="modify-status" value="attended"
+                                    checked>
+                                <label for="modify-status-attended" class="status-label status-attended">Attended</label>
+
+                                <input type="radio" id="modify-status-missed" name="modify-status" value="missed">
+                                <label for="modify-status-missed" class="status-label status-missed">Missed</label>
+
+                                <input type="radio" id="modify-status-cancelled" name="modify-status" value="cancelled">
+                                <label for="modify-status-cancelled" class="status-label status-cancelled">Cancelled</label>
+                            </div>
+                        </div>
+
+                        <div id="new-date-fields" class="hidden">
+                            <div>
+                                <label for="modify-day">Day of Week (Auto-detected)</label>
+                                <input type="text" id="modify-day" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit">Confirm</button>
+                            <button type="button" id="cancel-modify">Cancel</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="form-actions">
-                    <button type="button" id="project-attend-btn">Attend All</button>
-                    <button type="button" id="project-miss-btn" class="button-danger">Miss All</button>
-                </div>
-            </form>
-            <div id="projection-result" class="hidden"></div>
-        </section>
 
+            </section>
 
-        <section id="results" class="card" style="display:none;">
-            <h2>📊 Attendance Results</h2>
-
-            <!-- NEW: Bunk Calculator Dashboard -->
-            <div id="bunk-dashboard" class="bunk-card">
-                <h3>😎 Safe to Bunk (Bunk Manager)</h3>
+            <!-- Bunk Manager Dashboard (quick glance on Home) -->
+            <div id="bunk-dashboard" class="card bunk-card" style="display:none;">
+                <h3 style="margin-top: 0;">😎 Safe to Bunk</h3>
                 <div id="bunk-stats-grid" class="bunk-grid"></div>
             </div>
 
-            <div id="view-date-controls" class="card">
-                <h3>View Specific Date</h3>
-                <div class="view-date-form-group">
-                    <label for="view-date-input">Select Date:</label>
-                    <input type="date" id="view-date-input">
-                    <button type="button" id="view-date-btn">View Date</sbutton>
-                </div>
-            </div>
-            <div id="view-date-results" class="card" style="display:none;">
-            </div>
-            <div id="attendance-calendar-container">
-                <h3>Attendance Calendar</h3>
-                <div id="calendar-controls">
-                    <button id="calendar-prev-month" type="button" title="Previous Month">&larr;</button>
-                    <h4 id="calendar-month-year"></h4>
-                    <button id="calendar-next-month" type="button" title="Next Month">&rarr;</button>
-                </div>
-                <div id="calendar-weekdays">
-                    <div>Mon</div>
-                    <div>Tue</div>
-                    <div>Wed</div>
-                    <div>Thu</div>
-                    <div>Fri</div>
-                    <div>Sat</div>
-                    <div>Sun</div>
-                </div>
-                <div id="calendar-grid">
-                </div>
-            </div>
+        </div><!-- end page-home -->
 
-            <div id="attendance-table-container">
-            </div>
-            <div id="all-months-attendance">
-            </div>
+        <!-- ==================== PAGE: RESULTS ==================== -->
+        <div class="page" id="page-results">
 
-            <div id="complete-attendance">
-                <h2>📈 Complete Attendance (All Months)</h2>
-                <p>This is the combined percentage including your "Previous Data" and all tracked months. "Cancelled"
-                    classes are not included in this calculation.</p>
+            <section id="results" class="card">
+                <h2>📊 Attendance Results</h2>
 
-                <div id="chart-container">
-                    <canvas id="attendanceChart"></canvas>
-                </div>
-
-                <div id="complete-attendance-list">
-                </div>
-            </div>
-        </section>
-
-        <!-- NEW: Smart Insights & Gamification -->
-        <section id="insights-dashboard" class="card" style="display:none; margin-bottom: 1.5rem;">
-            <h2>💡 Smart Insights & Rewards</h2>
-            
-            <div class="insights-streak-container" style="text-align: center; margin-bottom: 1.5rem;">
-                <div class="streak-card" style="display: inline-block; padding: 1rem 2rem; background: var(--bg-white); border-radius: 50px; border: 2px solid var(--primary-accent); box-shadow: 0 4px 15px rgba(0,122,255,0.2);">
-                    <span class="streak-icon" style="font-size: 1.8rem; vertical-align: middle;">🔥</span>
-                    <div class="streak-details" style="display: inline-block; vertical-align: middle; text-align: left; margin-left: 0.5rem;">
-                        <span class="streak-label" style="display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase;">Current Streak</span>
-                        <span class="streak-value" id="current-streak" style="display: block; font-size: 1.5rem; font-weight: 800; color: var(--text-dark);">0 Days</span>
+                <div id="view-date-controls" class="card">
+                    <h3>View Specific Date</h3>
+                    <div class="view-date-form-group">
+                        <label for="view-date-input">Select Date:</label>
+                        <input type="date" id="view-date-input">
+                        <button type="button" id="view-date-btn">View Date</button>
                     </div>
                 </div>
-            </div>
-
-            <div class="insights-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
-                    <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Top Subject</h4>
-                    <span id="best-subject" style="font-weight: 700; font-size: 1.2rem; color: var(--success-text);">--</span>
+                <div id="view-date-results" class="card" style="display:none;">
                 </div>
-                <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
-                    <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Needs Focus</h4>
-                    <span id="worst-subject" style="font-weight: 700; font-size: 1.2rem; color: var(--danger-color);">--</span>
-                </div>
-                <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
-                    <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Best Day</h4>
-                    <span id="best-day" style="font-weight: 700; font-size: 1.2rem; color: var(--primary-accent);">--</span>
-                </div>
-            </div>
-
-            <div class="badges-container" style="margin-top: 2rem;">
-                <h3>🏆 Your Trophies</h3>
-                <div id="badges-grid" style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
-                    <p class="empty-state-message" id="no-badges-msg">Keep attending classes to unlock badges!</p>
-                </div>
-            </div>
-
-            <div class="weekly-trend-container" style="margin-top: 2rem;">
-                <h3>📈 Weekly Trend</h3>
-                <canvas id="weekly-trend-chart"></canvas>
-            </div>
-        </section>
-
-        <section id="danger-zone" class="card">
-            <h2>⚙️ Settings</h2>
-
-            <div class="settings-section">
-                <h3>🔔 Daily Reminders</h3>
-                <p>Get a daily local notification to remind you to log your attendance. (Keep browser open/backgrounded).</p>
-                <div class="form-group" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem;">
-                    <input type="time" id="reminder-time" class="premium-time-input" value="17:00" style="margin-bottom: 0;">
-                    <button type="button" id="enable-reminders-btn" class="button-secondary">Enable Reminders</button>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h3>Appearance</h3>
-                <div class="theme-options">
-                    <label class="theme-switch-label">
-                        Theme:
-                    </label>
-                    <div class="theme-buttons">
-                        <button type="button" class="theme-button" data-theme="light">Light</button>
-                        <button type="button" class="theme-button" data-theme="dark">Dark</button>
-                        <button type="button" class="theme-button" data-theme="zen">Zen</button>
+                <div id="attendance-calendar-container">
+                    <h3>Attendance Calendar</h3>
+                    <div id="calendar-controls">
+                        <button id="calendar-prev-month" type="button" title="Previous Month">&larr;</button>
+                        <h4 id="calendar-month-year"></h4>
+                        <button id="calendar-next-month" type="button" title="Next Month">&rarr;</button>
+                    </div>
+                    <div id="calendar-weekdays">
+                        <div>Mon</div>
+                        <div>Tue</div>
+                        <div>Wed</div>
+                        <div>Thu</div>
+                        <div>Fri</div>
+                        <div>Sat</div>
+                        <div>Sun</div>
+                    </div>
+                    <div id="calendar-grid">
                     </div>
                 </div>
-            </div>
 
-            <div class="settings-section">
-                <h3>Accent Color</h3>
-                <div class="color-swatch-container" id="color-swatch-container">
-                    <button class="color-swatch" data-color="#007aff" style="background: #007aff;"></button>
-                    <button class="color-swatch" data-color="#34c759" style="background: #34c759;"></button>
-                    <button class="color-swatch" data-color="#ff9500" style="background: #ff9500;"></button>
-                    <button class="color-swatch" data-color="#ff3b30" style="background: #ff3b30;"></button>
-                    <button class="color-swatch" data-color="#af52de" style="background: #af52de;"></button>
-                    <button class="color-swatch" data-color="#5856d6" style="background: #5856d6;"></button>
+                <div id="attendance-table-container">
                 </div>
-            </div>
-
-            <div class="settings-section">
-                <h3>Attendance Goal</h3>
-                <p>Set your minimum attendance percentage goal for the bunker calculator.</p>
-                <div class="goal-setter">
-                    <label for="attendance-goal-input">Goal Percentage</label>
-                    <input type="number" id="attendance-goal-input" min="1" max="100" value="75">
-                    <span>%</span>
+                <div id="all-months-attendance">
                 </div>
-            </div>
 
-            <div class="settings-section">
-                <h3>💾 Backup & Restore</h3>
-                <p style="font-size: 0.9em; margin-bottom: 1rem;">Export your current profile as a JSON file, or restore from a backup.</p>
-                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
-                    <button type="button" id="export-data-btn" class="button-secondary">Export JSON Backup</button>
-                    <label class="button-secondary" style="margin: 0; cursor: pointer;">
-                        Import JSON Backup
-                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
-                    </label>
+                <div id="complete-attendance">
+                    <h2>📈 Complete Attendance (All Months)</h2>
+                    <p>This is the combined percentage including your "Previous Data" and all tracked months. "Cancelled"
+                        classes are not included in this calculation.</p>
+
+                    <div id="chart-container">
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+
+                    <div id="complete-attendance-list">
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="settings-section">
-                <h3>📊 Export Analytics</h3>
-                <p style="font-size: 0.9em; margin-bottom: 1rem;">Export your statistics to a spreadsheet report.</p>
-                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
-                    <button type="button" id="export-report-btn" class="button-secondary" style="width: 100%;">Export CSV</button>
+        </div><!-- end page-results -->
+
+        <!-- ==================== PAGE: INSIGHTS ==================== -->
+        <div class="page" id="page-insights">
+
+            <section id="insights-dashboard" class="card">
+                <h2>💡 Smart Insights & Rewards</h2>
+                
+                <div class="insights-streak-container" style="text-align: center; margin-bottom: 1.5rem;">
+                    <div class="streak-card" style="display: inline-block; padding: 1rem 2rem; background: var(--bg-white); border-radius: 50px; border: 2px solid var(--primary-accent); box-shadow: 0 4px 15px rgba(0,122,255,0.2);">
+                        <span class="streak-icon" style="font-size: 1.8rem; vertical-align: middle;">🔥</span>
+                        <div class="streak-details" style="display: inline-block; vertical-align: middle; text-align: left; margin-left: 0.5rem;">
+                            <span class="streak-label" style="display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase;">Current Streak</span>
+                            <span class="streak-value" id="current-streak" style="display: block; font-size: 1.5rem; font-weight: 800; color: var(--text-dark);">0 Days</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="settings-section">
-                <h3>Reset Application</h3>
-                <p>Permanently delete all stored attendance data. This action cannot be undone.</p>
-                <button id="remove-all" class="button-danger">Remove All Records</button>
-            </div>
-        </section>
+                <div class="insights-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                    <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Top Subject</h4>
+                        <span id="best-subject" style="font-weight: 700; font-size: 1.2rem; color: var(--success-text);">--</span>
+                    </div>
+                    <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Needs Focus</h4>
+                        <span id="worst-subject" style="font-weight: 700; font-size: 1.2rem; color: var(--danger-color);">--</span>
+                    </div>
+                    <div class="insight-box bunk-card" style="text-align: center; margin-bottom: 0;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--text-light); text-transform: uppercase; font-size: 0.8rem;">Best Day</h4>
+                        <span id="best-day" style="font-weight: 700; font-size: 1.2rem; color: var(--primary-accent);">--</span>
+                    </div>
+                </div>
+
+                <div class="weekly-trend-container" style="margin-top: 2rem;">
+                    <h3>📈 Weekly Trend</h3>
+                    <canvas id="weekly-trend-chart"></canvas>
+                </div>
+            </section>
+
+        </div><!-- end page-insights -->
+
+        <!-- ==================== PAGE: PROJECTIONS ==================== -->
+        <div class="page" id="page-projections">
+
+            <section id="projections" class="card">
+                <h2>🔮 Attendance Projections</h2>
+                <p>See how future classes will affect your overall percentage. Select a subject and enter the number of
+                    classes to project.</p>
+                <form id="projection-form">
+                    <div class="projection-inputs">
+                        <div>
+                            <label for="projection-subject">Select Subject</label>
+                            <select id="projection-subject"></select>
+                        </div>
+                        <div>
+                            <label for="projection-classes">Future Classes</label>
+                            <input type="number" id="projection-classes" value="1" min="1">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="project-attend-btn">Attend All</button>
+                        <button type="button" id="project-miss-btn" class="button-danger">Miss All</button>
+                    </div>
+                </form>
+                <div id="projection-result" class="hidden"></div>
+            </section>
+
+        </div><!-- end page-projections -->
+
+        <!-- ==================== PAGE: SETTINGS ==================== -->
+        <div class="page" id="page-settings">
+
+            <section id="danger-zone" class="card">
+                <h2>⚙️ Settings</h2>
+
+                <div class="settings-section">
+                    <h3>🔔 Daily Reminders</h3>
+                    <p>Get a daily local notification to remind you to log your attendance. (Keep browser open/backgrounded).</p>
+                    <div class="form-group" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem;">
+                        <input type="time" id="reminder-time" class="premium-time-input" value="17:00" style="margin-bottom: 0;">
+                        <button type="button" id="enable-reminders-btn" class="button-secondary">Enable Reminders</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Appearance</h3>
+                    <div class="theme-options">
+                        <label class="theme-switch-label">
+                            Theme:
+                        </label>
+                        <div class="theme-buttons">
+                            <button type="button" class="theme-button" data-theme="light">Light</button>
+                            <button type="button" class="theme-button" data-theme="dark">Dark</button>
+                            <button type="button" class="theme-button" data-theme="zen">Zen</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Accent Color</h3>
+                    <div class="color-swatch-container" id="color-swatch-container">
+                        <button class="color-swatch" data-color="#007aff" style="background: #007aff;"></button>
+                        <button class="color-swatch" data-color="#34c759" style="background: #34c759;"></button>
+                        <button class="color-swatch" data-color="#ff9500" style="background: #ff9500;"></button>
+                        <button class="color-swatch" data-color="#ff3b30" style="background: #ff3b30;"></button>
+                        <button class="color-swatch" data-color="#af52de" style="background: #af52de;"></button>
+                        <button class="color-swatch" data-color="#5856d6" style="background: #5856d6;"></button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Attendance Goal</h3>
+                    <p>Set your minimum attendance percentage goal for the bunker calculator.</p>
+                    <div class="goal-setter">
+                        <label for="attendance-goal-input">Goal Percentage</label>
+                        <input type="number" id="attendance-goal-input" min="1" max="100" value="75">
+                        <span>%</span>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>💾 Backup & Restore</h3>
+                    <p style="font-size: 0.9em; margin-bottom: 1rem;">Export your current profile as a JSON file, or restore from a backup.</p>
+                    <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                        <button type="button" id="export-data-btn" class="button-secondary">Export JSON Backup</button>
+                        <label class="button-secondary" style="margin: 0; cursor: pointer;">
+                            Import JSON Backup
+                            <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>📊 Export Analytics</h3>
+                    <p style="font-size: 0.9em; margin-bottom: 1rem;">Export your statistics to a spreadsheet report.</p>
+                    <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                        <button type="button" id="export-report-btn" class="button-secondary" style="width: 100%;">Export CSV</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Reset Application</h3>
+                    <p>Permanently delete all stored attendance data. This action cannot be undone.</p>
+                    <button id="remove-all" class="button-danger">Remove All Records</button>
+                </div>
+            </section>
+
+        </div><!-- end page-settings -->
 
     </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav id="bottom-nav" class="bottom-nav">
+        <button class="nav-tab active" data-page="page-home" id="nav-home">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Home</span>
+        </button>
+        <button class="nav-tab" data-page="page-results" id="nav-results">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Results</span>
+        </button>
+        <button class="nav-tab" data-page="page-insights" id="nav-insights">
+            <span class="nav-icon">💡</span>
+            <span class="nav-label">Insights</span>
+        </button>
+        <button class="nav-tab" data-page="page-projections" id="nav-projections">
+            <span class="nav-icon">🔮</span>
+            <span class="nav-label">Projections</span>
+        </button>
+        <button class="nav-tab" data-page="page-settings" id="nav-settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Settings</span>
+        </button>
+    </nav>
 
     <footer class="site-footer">
         <p>Created by <strong style="background: linear-gradient(90deg, #ff007f, #7f00ff, #007fff); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: gradientText 3s linear infinite;">Srijan</strong></p>

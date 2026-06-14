@@ -31,6 +31,65 @@ let currentProfileId = null;
 
 let attendanceChart = null; // Variable to hold the chart instance
 let calendarView = new Date(); // State for the calendar
+let currentPage = 'page-home'; // Track current page
+let dataStale = { results: true, insights: true, projections: true }; // Track which pages need refresh
+
+// --- Page Navigation ---
+function navigateTo(pageId) {
+    // Hide timetable/previous attendance overlays
+    const timetableSetup = document.getElementById('timetable-setup');
+    const prevAttSetup = document.getElementById('previous-attendance-setup');
+    if (timetableSetup) timetableSetup.style.display = 'none';
+    if (prevAttSetup) prevAttSetup.style.display = 'none';
+
+    // Switch page
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add('active');
+    currentPage = pageId;
+
+    // Update nav tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.page === pageId);
+    });
+
+    // Refresh data for the target page
+    if (pageId === 'page-results' && dataStale.results) {
+        refreshResultsPage();
+        dataStale.results = false;
+    }
+    if (pageId === 'page-insights' && dataStale.insights) {
+        renderInsightsDashboard();
+        dataStale.insights = false;
+    }
+    if (pageId === 'page-projections' && dataStale.projections) {
+        populateProjectionSubjects();
+        dataStale.projections = false;
+    }
+    if (pageId === 'page-home') {
+        refreshHomePage();
+    }
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function refreshResultsPage() {
+    renderCalendar();
+    showAttendanceTable();
+    showAllMonthsAttendance();
+    showCompleteAttendance();
+}
+
+function refreshHomePage() {
+    renderBunkManager();
+    // Show/hide bunk dashboard based on data
+    const bunkDash = document.getElementById('bunk-dashboard');
+    const subjectTotals = calculateSubjectTotals();
+    if (bunkDash) {
+        bunkDash.style.display = Object.keys(subjectTotals).length > 0 ? 'block' : 'none';
+    }
+}
 
 // --- Core Data Handling ---
 
@@ -358,10 +417,10 @@ function attachMasterListListeners() {
 
 // Helper to update UI elements that use subject colors/icons
 function updateUIColors() {
-    if (document.getElementById('results')?.style.display === 'block') {
-         showCompleteAttendance(); showAttendanceTable(); renderCalendar();
+    if (currentPage === 'page-results') {
+         refreshResultsPage();
     }
-    if (document.getElementById('attendance-mark')?.style.display === 'block') {
+    if (currentPage === 'page-home') {
          showAttendanceForm();
     }
 }
@@ -404,6 +463,8 @@ function saveTimetable(e) {
 
     renderSubjectMasterList();
     document.getElementById('timetable-setup').style.display = 'none';
+    // Navigate to home page and then proceed to previous attendance or main flow
+    navigateTo('page-home');
     createPreviousAttendanceInputs();
 }
 
@@ -427,9 +488,9 @@ function handleDeleteSubject(e) {
 
 // Helper to update UI after subject deletion
 function updateUIAfterDelete() {
-     if (document.getElementById('results')?.style.display === 'block' || currentMonthName) { showResults(); }
-     if (document.getElementById('attendance-mark')?.style.display === 'block') { showAttendanceForm(); }
-     if (document.getElementById('projections')?.style.display === 'block') { populateProjectionSubjects(); }
+     if (currentMonthName) { showResults(); }
+     if (currentPage === 'page-home') { showAttendanceForm(); }
+     if (currentPage === 'page-projections') { populateProjectionSubjects(); }
 }
 
 
@@ -535,7 +596,7 @@ function showMonthControls() {
     const newMonthBtn = document.getElementById('new-month-btn');
     const newMonthForm = document.getElementById('new-month-form');
     const monthNameInput = document.getElementById('month-name-input');
-    if (!controls || !newMonthBtn || !newMonthForm || !monthNameInput) return; // Safety check
+    if (!controls || !newMonthBtn || !newMonthForm || !monthNameInput) return;
 
     controls.style.display = 'block';
     updateMonthLabel();
@@ -785,29 +846,39 @@ function submitAttendance(e) {
 // --- Results Display ---
 
 function showResults() {
-    const resultsSection = document.getElementById('results');
-    if (!resultsSection) return;
-    resultsSection.style.display = 'block';
+    // Mark all data pages as stale so they refresh when navigated to
+    dataStale.results = true;
+    dataStale.insights = true;
+    dataStale.projections = true;
 
     // Set the default date for the new view-by-date input
     const viewDateInput = document.getElementById('view-date-input');
     if (viewDateInput && !viewDateInput.value) {
         viewDateInput.valueAsDate = new Date();
     }
-    // Hide the results card by default
+    // Hide the view-date results by default
     const viewDateResults = document.getElementById('view-date-results');
     if (viewDateResults) {
         viewDateResults.style.display = 'none';
         viewDateResults.innerHTML = '';
     }
 
-    renderCalendar(); // New calendar
-    showAttendanceTable();
-    showAllMonthsAttendance();
-    showCompleteAttendance();
-    populateProjectionSubjects(); // Update projection dropdown
-    renderInsightsDashboard(); 
-    renderBunkManager(); // NEW: Call Bunk Manager render
+    // If currently on a data page, refresh it immediately
+    if (currentPage === 'page-results') {
+        refreshResultsPage();
+        dataStale.results = false;
+    }
+    if (currentPage === 'page-insights') {
+        renderInsightsDashboard();
+        dataStale.insights = false;
+    }
+    if (currentPage === 'page-projections') {
+        populateProjectionSubjects();
+        dataStale.projections = false;
+    }
+
+    // Always refresh home page bunk stats
+    refreshHomePage();
 }
 
 // *** NEW FEATURE: Show Attendance for Specific Date ***
@@ -949,11 +1020,6 @@ function showCompleteAttendance() {
     const goalPercent = parseFloat(localStorage.getItem('attendance_goal')) || 75;
     const goal = goalPercent / 100.0;
     let chartLabels = [], chartData = [], chartColors = [];
-    
-    // Bunk Dashboard
-    const bunkGrid = document.getElementById('bunk-stats-grid');
-    if (bunkGrid) bunkGrid.innerHTML = '';
-    let bunkerWidgets = '';
 
     Object.keys(subjectTotals).sort().forEach(name => {
         const { attended, total } = subjectTotals[name];
@@ -967,12 +1033,10 @@ function showCompleteAttendance() {
              const bunksAvailable = (goal > 0) ? Math.floor((attended - (goal * total)) / goal) : Infinity; 
              bunkerInfo = `<span class="bunker-info bunks-available">Can miss ${bunksAvailable} class${bunksAvailable !== 1 ? 'es' : ''}.</span>`;
              barColorClass = 'bar-success';
-             bunkerWidgets += `<div class="bunk-stat stat-safe" style="border-left-color: ${subjectMeta.color}"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${name}: <strong>Safe to skip ${bunksAvailable}</strong></div>`;
         } else {
              const classesNeeded = (goal >= 1) ? (total - attended) : Math.ceil(((goal * total) - attended) / (1 - goal));
              bunkerInfo = `<span class="bunker-info bunks-needed">Need ${classesNeeded} class${classesNeeded !== 1 ? 'es' : ''} for ${goalPercent}%.</span>`;
              if (percentNum < 50) barColorClass = 'bar-danger'; else barColorClass = 'bar-warning';
-             bunkerWidgets += `<div class="bunk-stat stat-danger" style="border-left-color: ${subjectMeta.color}"><span class="subject-icon">${subjectMeta.icon || ''}</span> ${name}: <strong>Need to attend ${classesNeeded}</strong></div>`;
         }
 
         listHTML += `<li style="border-left-color: ${subjectMeta.color};">
@@ -986,10 +1050,6 @@ function showCompleteAttendance() {
     });
     listHTML += '</ul>';
     listDiv.innerHTML = listHTML;
-    if (bunkGrid) {
-        if (!bunkerWidgets) bunkerWidgets = '<p class="empty-state-message">Track some classes to see personalized Bunk strategies.</p>';
-        bunkGrid.innerHTML = bunkerWidgets;
-    }
     drawAttendanceChart(chartLabels, chartData, chartColors, subjectTotals, overallAverage);
 }
 
@@ -1133,9 +1193,12 @@ function drawAttendanceChart(labels, data, colors, subjectTotals, overallAverage
 
 // --- Projections ---
 function showProjectionsCard() {
-    const projectionSection = document.getElementById('projections');
-    if (projectionSection) projectionSection.style.display = 'block';
-    populateProjectionSubjects();
+    // Projections are now on their own page, just mark as stale
+    dataStale.projections = true;
+    if (currentPage === 'page-projections') {
+        populateProjectionSubjects();
+        dataStale.projections = false;
+    }
 }
 function populateProjectionSubjects() {
     const select = document.getElementById('projection-subject');
@@ -1454,19 +1517,20 @@ function markDayAsHoliday() {
 // --- Back Navigation ---
 function goBackToTimetable() {
     console.log('goBackToTimetable called');
-    // Hide all downstream sections
-    const sectionsToHide = ['previous-attendance-setup', 'month-controls', 'attendance-mark', 'projections', 'results', 'insights-dashboard'];
+    // Hide overlays
+    const sectionsToHide = ['previous-attendance-setup'];
     sectionsToHide.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
-    // Show timetable setup
+    // Show timetable setup as overlay
     const timetableSetup = document.getElementById('timetable-setup');
     if (timetableSetup) {
         timetableSetup.style.display = 'block';
         createTimetableInputs();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    // Navigate to home page
+    navigateTo('page-home');
 }
 
 function removeAllRecords() { 
@@ -1668,26 +1732,69 @@ function renderBunkManager() {
         let classesNeeded = 0;
         let msg = '';
         let statClass = '';
+        let colorClass = '';
         const currentPct = (stats.attended / stats.total) * 100;
         
         if (currentPct >= goalPercent) {
             safeToBunk = Math.floor((stats.attended - goal * stats.total) / goal);
             if (safeToBunk > 0) {
-                msg = `Safe to bunk <strong>${safeToBunk}</strong> class${safeToBunk > 1 ? 'es' : ''}`;
+                msg = `Safe to bunk <strong>${safeToBunk}</strong>`;
                 statClass = 'stat-safe';
+                colorClass = 'var(--success-color)';
             } else {
-                msg = `On track (Cannot bunk)`;
+                msg = `On track`;
                 statClass = 'stat-safe';
+                colorClass = 'var(--success-color)';
             }
         } else {
             classesNeeded = Math.ceil((goal * stats.total - stats.attended) / (1 - goal));
-            msg = `Need <strong>${classesNeeded}</strong> class${classesNeeded > 1 ? 'es' : ''}`;
+            msg = `Need <strong>${classesNeeded}</strong>`;
             statClass = 'stat-danger';
+            colorClass = 'var(--danger-color)';
         }
         
+        const radius = 20;
+        const strokeDasharray = 2 * Math.PI * radius;
+        // Cap percentage at 100 for the circle visualization
+        const displayPct = Math.min(100, currentPct);
+        const strokeDashoffset = strokeDasharray * ((100 - displayPct) / 100);
+
         const card = document.createElement('div');
         card.className = `bunk-stat ${statClass}`;
-        card.innerHTML = `<div style="flex:1"><strong>${name}</strong> <span style="display:block; font-size: 0.8rem; color: #666;">${currentPct.toFixed(1)}%</span></div> <div>${msg}</div>`;
+        card.style.display = 'flex';
+        card.style.alignItems = 'center';
+        card.style.gap = '1rem';
+        card.style.padding = '1rem';
+        card.style.background = 'var(--input-bg)';
+        card.style.borderRadius = 'var(--border-radius-md)';
+        card.style.border = '1px solid var(--border-color)';
+        card.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+
+        card.onmouseover = () => { card.style.transform = 'translateY(-2px)'; card.style.boxShadow = '0 4px 12px var(--shadow-color)'; };
+        card.onmouseout = () => { card.style.transform = 'none'; card.style.boxShadow = 'none'; };
+
+        card.innerHTML = `
+            <div class="circular-progress" style="position: relative; width: 48px; height: 48px;">
+                <svg width="48" height="48" viewBox="0 0 48 48" style="transform: rotate(-90deg);">
+                    <circle cx="24" cy="24" r="${radius}" fill="none" stroke="var(--progress-track-bg)" stroke-width="4"></circle>
+                    <circle cx="24" cy="24" r="${radius}" fill="none" stroke="${colorClass}" stroke-width="4" stroke-dasharray="${strokeDasharray}" stroke-dashoffset="${strokeDasharray}" style="transition: stroke-dashoffset 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);" stroke-linecap="round"></circle>
+                </svg>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: var(--text-dark);">
+                    ${Math.round(currentPct)}%
+                </div>
+            </div>
+            <div style="flex:1;">
+                <strong style="display: block; font-size: 1rem; margin-bottom: 0.1rem; color: var(--text-dark);">${name}</strong>
+                <div style="font-size: 0.85rem; color: var(--text-light);">${msg}</div>
+            </div>
+        `;
+        
+        // Trigger reflow for animation
+        setTimeout(() => {
+            const circle = card.querySelector('circle:nth-child(2)');
+            if (circle) circle.style.strokeDashoffset = strokeDashoffset;
+        }, 50);
+
         grid.appendChild(card);
     });
 }
@@ -1695,6 +1802,7 @@ function renderBunkManager() {
 function renderInsightsDashboard() {
     const dashboard = document.getElementById('insights-dashboard');
     if (!dashboard) return;
+    // Insights are always visible on their page - no display toggling needed
 
     let streak = 0;
     const sortedDates = [...attendance].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -2106,9 +2214,6 @@ function switchProfile(profileId) {
     createTimetableInputs();
     setupInitialUIState();
     renderSubjectMasterList();
-    if (document.getElementById('results')?.style.display === 'block' || currentMonthName) {
-         showResults();
-    }
     showNotification(`Switched to profile: ${profileId}`, 'success');
 }
 
@@ -2183,6 +2288,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Helper function to attach all event listeners
 function attachEventListeners() {
+    // --- Bottom Navigation ---
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            navigateTo(tab.dataset.page);
+        });
+    });
+
     // Profile Forms
     document.getElementById('profile-select')?.addEventListener('change', (e) => switchProfile(e.target.value));
     document.getElementById('add-profile-btn')?.addEventListener('click', createNewProfile);
@@ -2194,8 +2306,14 @@ function attachEventListeners() {
     
     document.getElementById('edit-timetable-btn')?.addEventListener('click', () => {
         const setup = document.getElementById('timetable-setup');
-        if (setup) setup.style.display = setup.style.display === 'none' ? 'block' : 'none';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (setup) {
+            const isVisible = setup.style.display !== 'none';
+            setup.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                createTimetableInputs();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
     });
     
     // Core Data & Share Listeners
@@ -2214,7 +2332,6 @@ function attachEventListeners() {
     // Buttons
     document.getElementById('remove-all')?.addEventListener('click', removeAllRecords);
     document.getElementById('skip-previous-btn')?.addEventListener('click', skipPreviousAttendance);
-    document.getElementById('export-data-btn')?.addEventListener('click', exportData);
     document.getElementById('delete-day-btn')?.addEventListener('click', deleteDayAttendance);
     document.getElementById('add-subject-btn-show')?.addEventListener('click', () => toggleModifyForm(true, 'add'));
     document.getElementById('remove-subject-btn-show')?.addEventListener('click', () => toggleModifyForm(true, 'remove'));
@@ -2225,11 +2342,9 @@ function attachEventListeners() {
     // Holiday & Back Navigation
     document.getElementById('mark-holiday-btn')?.addEventListener('click', markDayAsHoliday);
     document.getElementById('back-to-timetable-from-prev')?.addEventListener('click', goBackToTimetable);
-    document.getElementById('back-to-timetable-from-month')?.addEventListener('click', goBackToTimetable);
 
-    // *** NEW EVENT LISTENER ***
+    // View date
     document.getElementById('view-date-btn')?.addEventListener('click', showAttendanceForDate);
-    // *** END NEW LISTENER ***
 
     // Import Button Logic (Handles file input click)
     const importBtn = document.getElementById('import-data-btn');
@@ -2273,7 +2388,7 @@ function setupThemeListeners() {
         const validThemes = ['light', 'dark', 'zen']; theme = validThemes.includes(theme) ? theme : 'light';
         document.body.dataset.theme = theme; localStorage.setItem('theme', theme);
         themeButtons.forEach(button => { button.classList.toggle('active', button.dataset.theme === theme); });
-        if (document.getElementById('results')?.style.display === 'block') { showCompleteAttendance(); } // Redraw chart
+        if (currentPage === 'page-results') { showCompleteAttendance(); } // Redraw chart
     }
     const savedTheme = localStorage.getItem('theme');
     setTheme(savedTheme || (systemPrefersDark ? 'dark' : 'light')); // Initial set
@@ -2325,17 +2440,10 @@ function setupInitialUIState() {
      startReminderLoop(); // Check for set reminders
 
      const timetableSetup = document.getElementById('timetable-setup');
-     const projectionsSection = document.getElementById('projections');
-     if (!timetableSetup || !projectionsSection) return;
+     if (!timetableSetup) return;
 
      // Set calendar view to current month or saved month
-     if (currentMonthName) {
-         // This is a bit tricky, as month name isn't a date
-         // We'll just default to today's date for the calendar view
-         calendarView = new Date();
-     } else {
-         calendarView = new Date();
-     }
+     calendarView = new Date();
 
      // Check if timetable has *any* days defined with actual subjects
      const isTimetableSetup = Object.keys(timetable).length > 0 && 
@@ -2344,25 +2452,25 @@ function setupInitialUIState() {
      if (isTimetableSetup) {
          timetableSetup.style.display = 'none';
          const hasPreviousDataEntry = monthlyHistory.some(m => m.monthName === "Previous Data");
-         if (!hasPreviousDataEntry) { createPreviousAttendanceInputs(); }
-         else {
+         if (!hasPreviousDataEntry) {
+             // Navigate to home first, then show previous attendance overlay
+             navigateTo('page-home');
+             createPreviousAttendanceInputs();
+         } else {
              showMonthControls(); // This function handles showing attendance mark section
              if (currentMonthName) {
                  showAttendanceForm(); showResults(); showProjectionsCard();
              } else {
-                 showResults(); // Show baseline %
-                 if (Object.keys(subjectsMaster).length > 0) { showProjectionsCard(); } else { projectionsSection.style.display = 'none'; }
+                 showResults(); // Mark data pages as stale
+                 showProjectionsCard();
              }
+             // Navigate to home page
+             navigateTo('page-home');
          }
      } else {
          // Timetable not set up yet for this profile
+         // Navigate to home first, then show timetable setup overlay on top
+         navigateTo('page-home');
          timetableSetup.style.display = 'block';
-         
-         // Explicitly hide all other dashboard sections belonging to an active profile
-         const sectionsToHide = ['previous-attendance-setup', 'month-controls', 'attendance-mark', 'projections', 'results', 'insights-dashboard'];
-         sectionsToHide.forEach(id => {
-             const el = document.getElementById(id);
-             if (el) el.style.display = 'none';
-         });
      }
 }
